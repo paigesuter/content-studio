@@ -28,6 +28,18 @@
   </section>
 
   <section class="side">
+    <div class="card flow-card">
+      <h2>🎙 Make it flow</h2>
+      <p id="flowStatus" class="small"></p>
+      <button id="flowBtn" class="big-btn">🎙 Listen to what I'm saying</button>
+      <label class="toggle"><input type="checkbox" id="capToggle" checked> Captions on what I say</label>
+      <div id="storyBox" hidden>
+        <label class="field">What's this video about? <input id="goalIn" type="text" placeholder="e.g. why I moved to Australia with no plan"></label>
+        <button id="askStory" class="claude-btn">✧ Ask Claude to edit the story</button>
+        <p class="small muted">Claude reads every sentence from every clip and puts the best ones in the order that makes sense, with b-roll in between.</p>
+      </div>
+    </div>
+
     <div class="card timeline-card">
       <div class="row-head"><h2>Timeline</h2><span id="totalLabel" class="small muted"></span></div>
       <div class="tracks">
@@ -55,7 +67,7 @@
         <button class="chip" data-pace="snappy">Snappy</button>
       </div>
       <p class="small muted">Changing pace re-does the first edit (undo brings yours back).</p>
-      <div class="chips"><button class="chip" data-tr="fade">Smooth crossfade</button><button class="chip" data-tr="cut">Straight cuts</button></div>
+      <div class="chips"><button class="chip" data-tr="fade">Smooth dissolves between clips</button><button class="chip" data-tr="cut">Straight cuts</button></div>
     </div>
 
     <div class="card">
@@ -85,8 +97,22 @@
   </div>
 </div>
 
+<div id="claudeSheet" class="sheet" hidden>
+  <div class="sheet-inner">
+    <div class="row-head"><h2>✧ Ask Claude to edit the story</h2><button id="closeClaude" class="ghost">Close</button></div>
+    <p class="small"><b>1.</b> Copy this and paste it into your Claude chat (free, using your Claude subscription).</p>
+    <button id="copyPrompt" class="big-btn">Copy prompt</button>
+    <pre id="promptBox" class="promptbox"></pre>
+    <p class="small"><b>2.</b> Copy Claude's whole reply and paste it here:</p>
+    <textarea id="replyBox" class="replybox" placeholder="Paste Claude's reply here"></textarea>
+    <button id="applyReply" class="big-btn">Build my edit</button>
+    <p id="replyMsg" class="small muted"></p>
+  </div>
+</div>
+
 <video id="vA" playsinline preload="auto" class="hidden-video"></video>
 <video id="vB" playsinline preload="auto" class="hidden-video"></video>
+<video id="vC" playsinline preload="auto" class="hidden-video"></video>
 <script type="module" src="montage.js"></script>
 </body>
 </html>

@@ -41,7 +41,7 @@ function cleanWord(text, cap) {
 
 // ---------- captions ----------
 
-function drawCaptions(ctx, W, H, st, t) {
+export function drawCaptions(ctx, W, H, st, t) {
   const { plan, look, palette } = st;
   const cap = look.captions;
   if (!st.captionsOn || !plan.groups.length) return;
