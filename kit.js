@@ -10,6 +10,8 @@ export const PALETTES = [
     colors: { text: "#FFFFFF", pink: "#F9D2DE", butter: "#FFF0B8", soft: "#FDF7F2", deep: "#6E5148" } },
   { id: "coast", name: "Sunlit Coast", note: "For Bali, beach days and travel. Butter leads, pink supports, a soft sea accent.",
     colors: { text: "#FFFFFF", pink: "#F2BACA", butter: "#F6D98A", soft: "#F5EDE2", deep: "#5E5048", sea: "#A8CFCF" } },
+  { id: "sage", name: "Pink & Sage", note: "From your moodboard reference: blush pink with soft sage. An option to try, not a change.",
+    colors: { text: "#FFFFFF", pink: "#F6C9D2", butter: "#FFEDE9", soft: "#F7F3EE", deep: "#4F6B55", sage: "#BBD3BF", sagedeep: "#698A6F" } },
   { id: "studio", name: "Pilates Pink", note: "Your Pilates series: a slightly deeper pink with butter highlights.",
     colors: { text: "#FFFFFF", pink: "#EFA3BC", butter: "#FBE6A2", soft: "#FCEAF0", deep: "#5A3646" } },
 ];
@@ -42,7 +44,7 @@ export function googleFontsHref() {
     fams.get(key).add(`${f.italic ? 1 : 0},${f.weight}`);
   }
   // Editor looks also use these
-  const extra = { "Montserrat": ["0,800", "0,900"], "DM Sans": ["0,700"], "Inter": ["0,800"], "Space Mono": ["0,400"], "DM Serif Display": ["0,400"], "Playfair Display": ["1,400"] };
+  const extra = { "Nunito": ["0,400", "0,600", "0,700", "0,800"], "Montserrat": ["0,800", "0,900"], "DM Sans": ["0,700"], "Inter": ["0,800"], "Space Mono": ["0,400"], "DM Serif Display": ["0,400"], "Playfair Display": ["1,400"] };
   for (const [k, v] of Object.entries(extra)) { if (!fams.has(k)) fams.set(k, new Set()); v.forEach((x) => fams.get(k).add(x)); }
   const parts = [...fams.entries()].map(([fam, set]) => {
     const vals = [...set].sort();

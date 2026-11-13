@@ -1,5 +1,7 @@
 // Paige's Content Studio: app shell + Phase 1 screens (Home, My Footage, Create, Brand Brain, Brand Kit).
-import { storageInfo, askToKeep } from "./db.js";
+import { storageInfo, askToKeep, db } from "./db.js";
+const dbValue = (k) => db.getValue(k, null);
+const dbSet = (k, v) => db.setValue(k, v);
 import { loadBrand, updateBrand, history, revert, addFeedback, loadKit, saveKit, addCustomFont,
   registerCustomFonts, removeCustomFont, exportBackup, importBackup, resetBrand } from "./brand.js";
 import { PALETTES, PAIRINGS, googleFontsHref, activePalette } from "./kit.js";
@@ -51,14 +53,17 @@ async function refreshMedia() { S.media = await listMedia(); S.folders = await l
 
 // ---------- navigation ----------
 const NAV = [
-  ["home", "Home", "⌂"], ["footage", "My Footage", "▦"], ["create", "Create / Edit", "✂"], ["brain", "Brand Brain", "♡"],
-  ["hooks", "Hook Bank", "❝"], ["inspo", "Inspiration", "✧"], ["calendar", "Content Calendar", "▢"], ["kit", "Brand Kit & Settings", "✿"],
+  ["home", "Dashboard", "🏠"], ["footage", "My Footage", "🎞️"], ["create", "Create / Edit", "✂️"], ["brain", "Brand Brain", "💗"],
+  ["hooks", "Hook Bank", "💬"], ["inspo", "Inspiration", "✨"], ["calendar", "Content Calendar", "🗓️"], ["kit", "Brand Kit & Settings", "🎀"],
 ];
 function renderNav(page) {
   const links = (cls) => NAV.map(([id, name, ic]) => el("a", { href: `#${id}`, class: id === page ? "on" : "" }, el("span", { class: "ic" }, ic), name));
   $("nav").replaceChildren(...links());
   $("mobNav").replaceChildren(...NAV.map(([id, name]) => el("a", { href: `#${id}`, class: id === page ? "on" : "" }, name.split(" ")[0] === "Brand" ? name.replace(" & Settings", "") : name)));
   $("mobNav").querySelector(".on")?.scrollIntoView({ inline: "center", block: "nearest" });
+  const item = NAV.find((n) => n[0] === page);
+  $("tbTitle").textContent = item[1].replace(" & Settings", "");
+  $("tbIcon").textContent = item[2];
 }
 const VIEWS = {};
 async function render() {
@@ -108,7 +113,7 @@ function tile(m, onClick) {
 }
 
 function swatchRow(pal, { labels = true, copy = false } = {}) {
-  const roles = [["text", "Text"], ["pink", "Pink"], ["butter", "Butter"], ["soft", "Soft"], ["deep", "Deep"], ["sea", "Sea"]];
+  const roles = [["text", "Text"], ["pink", "Pink"], ["butter", "Butter"], ["sage", "Sage"], ["sagedeep", "Sage deep"], ["soft", "Soft"], ["deep", "Deep"], ["sea", "Sea"]];
   return el("div", { class: "swatches" }, roles.filter(([r]) => pal.colors[r]).map(([r, name]) =>
     el("button", { class: "sw", title: pal.colors[r], onclick: copy ? async (e) => { e.stopPropagation(); if (await copyText(pal.colors[r])) toast(`Copied ${pal.colors[r]}`); } : null },
       el("i", { style: { background: pal.colors[r] } }), labels ? el("span", {}, name) : null, labels ? el("span", { style: { fontWeight: 500 } }, pal.colors[r]) : null)));
@@ -126,77 +131,125 @@ function previewFrame(pairing, pal, bgUrl, size = "") {
 }
 
 // ============================================================ HOME
+// ---- follower goal (private, on this device) ----
+async function loadGrowth() { return (await dbValue("growth")) || { target: null, points: [] }; }
+async function saveGrowth(g) { await dbSet("growth", g); }
+
+function growthChart(g) {
+  const pts = [...g.points].sort((a, b) => a.date.localeCompare(b.date));
+  const W = 560, H = 210, P = 30;
+  if (!pts.length) return el("div", { class: "drop", style: { padding: "34px" } }, "Add your follower count now and then. Your growth line appears here.");
+  const target = g.target || Math.max(...pts.map((p) => p.followers)) * 1.2;
+  const min = Math.min(...pts.map((p) => p.followers)) * 0.9;
+  const max = Math.max(target, ...pts.map((p) => p.followers));
+  const t0 = new Date(pts[0].date).getTime(), t1 = Math.max(t0 + 864e5, new Date(pts[pts.length - 1].date).getTime());
+  const x = (d) => P + ((new Date(d).getTime() - t0) / (t1 - t0)) * (W - P * 2);
+  const y = (v) => H - P - ((v - min) / (max - min || 1)) * (H - P * 2);
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.setAttribute("class", "chart");
+  const add = (tag, attrs) => { const n = document.createElementNS(ns, tag); for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v); svg.append(n); return n; };
+  for (let i = 0; i <= 3; i++) add("line", { x1: P, x2: W - P, y1: P + i * (H - 2 * P) / 3, y2: P + i * (H - 2 * P) / 3, stroke: "#F6DDE5", "stroke-width": 1 });
+  if (g.target) { add("line", { x1: P, x2: W - P, y1: y(g.target), y2: y(g.target), stroke: "#F8E3A3", "stroke-width": 2, "stroke-dasharray": "6 6" });
+    const t = add("text", { x: W - P, y: y(g.target) - 6, "text-anchor": "end", fill: "#B89A3E", "font-size": 12, "font-weight": 700 }); t.textContent = `goal ${g.target.toLocaleString()}`; }
+  const d = pts.map((p, i) => `${i ? "L" : "M"}${x(p.date).toFixed(1)},${y(p.followers).toFixed(1)}`).join(" ");
+  add("path", { d: `${d} L${x(pts[pts.length - 1].date)},${H - P} L${x(pts[0].date)},${H - P} Z`, fill: "rgba(245,196,211,.35)" });
+  add("path", { d, fill: "none", stroke: "#E796B0", "stroke-width": 3, "stroke-linecap": "round", "stroke-linejoin": "round" });
+  pts.forEach((p, i) => add("circle", { cx: x(p.date), cy: y(p.followers), r: i === pts.length - 1 ? 6 : 4, fill: i === pts.length - 1 ? "#F8E3A3" : "#fff", stroke: "#E796B0", "stroke-width": 2 }));
+  return svg;
+}
+
 function greeting() {
   const h = new Date().getHours();
   return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
 }
 
 function moodboard(pal, pairing, limit = 7) {
-  // Your own photos (Brand assets / Inspiration first) mixed with colour tiles, like a moodboard.
+  // Your own photos (Brand assets / Inspiration first) mixed with colour tiles and a type sample, masonry style.
   const pref = S.folders.filter((f) => ["Brand assets", "Inspiration"].includes(f.name)).map((f) => f.id);
   const pics = [...S.media.filter((m) => m.thumb && m.folders?.some((id) => pref.includes(id))), ...S.media.filter((m) => m.thumb)]
     .filter((m, i, a) => a.findIndex((x) => x.id === m.id) === i).slice(0, limit);
-  const colors = [["pink", "Pink"], ["butter", "Butter"], ["soft", "Soft"], ["text", "White"]].filter(([r]) => pal.colors[r]);
+  const colorTiles = ["pink", "sage", "butter", "sagedeep", "soft", "text"].filter((r) => pal.colors[r])
+    .map((r) => el("div", { class: "mb-tile mb-color", style: { background: pal.colors[r] } }, el("span", {}, pal.colors[r])));
+  const typeTile = el("div", { class: "mb-tile mb-type" },
+    el("span", { style: { fontFamily: `"${pairing.title.family}"`, fontStyle: pairing.title.italic ? "italic" : "normal" } }, "paige"),
+    el("small", {}, `${pairing.title.family} · ${pairing.primary.family}`));
   const tiles = [];
   pics.forEach((m, i) => {
-    tiles.push(el("button", { class: "mb-tile mb-photo" + (i === 0 ? " mb-big" : ""), onclick: () => openMedia(m) }, el("img", { src: thumbUrl(m), alt: "" })));
-    if (i < colors.length) { const [r, n] = colors[i]; tiles.push(el("div", { class: "mb-tile mb-color", style: { background: pal.colors[r] } }, el("span", {}, pal.colors[r]))); }
+    tiles.push(el("button", { class: "mb-tile mb-photo" + (i % 3 === 0 ? " tall" : ""), onclick: () => openMedia(m) }, el("img", { src: thumbUrl(m), alt: "" })));
+    if (colorTiles.length && i % 2 === 0) tiles.push(colorTiles.shift());
+    if (i === 1) tiles.push(typeTile);
   });
-  colors.slice(pics.length).forEach(([r]) => tiles.push(el("div", { class: "mb-tile mb-color", style: { background: pal.colors[r] } }, el("span", {}, pal.colors[r]))));
-  tiles.push(el("div", { class: "mb-tile mb-type" },
-    el("span", { style: { fontFamily: `"${pairing.title.family}"`, fontStyle: pairing.title.italic ? "italic" : "normal" } }, "Aa"),
-    el("small", {}, pairing.title.family)));
+  if (pics.length < 2) tiles.push(typeTile);
+  tiles.push(...colorTiles);
   if (!pics.length) tiles.push(el("button", { class: "mb-tile mb-add", onclick: () => pickUpload(S.folders.find((f) => f.name === "Brand assets")?.id) }, "＋ Add your photos"));
   return el("div", { class: "moodboard" }, tiles);
 }
 
+const AFFIRMATIONS = () => [S.brand.identity.message, ...(S.brand.identity.themes || [])].filter(Boolean);
+
 VIEWS.home = async () => {
   const pal = activePalette(S.kit);
   const pairing = PAIRINGS.find((p) => p.id === S.kit.pairing) || PAIRINGS[0];
-  const recent = S.media.slice(0, 10);
+  const recent = S.media.slice(0, 8);
   const videos = S.media.filter((m) => m.kind === "video");
+  const photos = S.media.length - videos.length;
+  const weekAgo = Date.now() - 7 * 864e5;
+  const thisWeek = S.media.filter((m) => new Date(m.added).getTime() > weekAgo);
   const totalSecs = videos.reduce((a, m) => a + (m.duration || 0), 0);
-  const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
-  const stat = (label, value, sub, tone, href) => el("a", { class: `stat ${tone}`, href }, el("small", {}, label), el("b", {}, value), el("span", {}, sub));
+  const growth = await loadGrowth();
+  const last = [...growth.points].sort((a, b) => a.date.localeCompare(b.date)).pop();
+  const stat = (label, value, trend, icon, href) => el("a", { class: "stat", href },
+    el("div", {}, el("small", {}, label), el("b", {}, value), el("span", { class: "trend" }, trend)), el("i", { class: "stat-ic" }, icon));
+  const affs = AFFIRMATIONS();
+  const aff = affs[new Date().getDate() % affs.length];
+  const followerInput = el("input", { type: "text", inputmode: "numeric", placeholder: last ? `Now: ${last.followers.toLocaleString()}` : "Followers today, e.g. 8400" });
+  const targetInput = el("input", { type: "text", inputmode: "numeric", placeholder: growth.target ? `Goal: ${growth.target.toLocaleString()}` : "Your goal, e.g. 20000" });
+  const num = (v) => parseInt(String(v).replace(/[^\d]/g, ""), 10);
   return [
     el("section", { class: "greet" },
-      el("div", {},
-        el("h1", {}, `${greeting()}, `, el("em", {}, "Paige"), " ", el("span", { class: "heart" }, "♡")),
-        el("p", { class: "muted" }, "Your little content studio. Upload, create and export, all in your brand.")),
-      el("div", { class: "quote-pill" }, el("small", {}, "your message"), el("span", {}, S.brand.identity.message))),
+      el("h1", { class: "greet-h" }, `${greeting()}, Paige `, el("span", { class: "heart" }, "💗"), el("span", { class: "greet-sub" }, " your little studio is ready")),
+    ),
     el("div", { class: "stats" },
-      stat("Footage", S.media.length, `${plural(videos.length, "video")} · ${plural(S.media.length - videos.length, "photo")}`, "pink", "#footage"),
-      stat("Filmed", fmtDuration(totalSecs), "of video ready to edit", "butter", "#footage"),
-      stat("Folders", S.folders.length, "Bali, Fashion, Pilates…", "blush", "#footage"),
-      stat("Brand kit", S.kit.approved ? "Approved" : "To do", S.kit.approved ? pal.name : "Pick colours & fonts", S.kit.approved ? "sage" : "butter", "#kit")),
-    el("div", { class: "quick" },
-      el("button", { class: "qa qa-main", onclick: () => pickUpload() }, el("i", {}, "＋"), "Upload footage"),
-      el("a", { class: "qa", href: "#create" }, el("i", {}, "✂"), "Make a reel"),
-      el("a", { class: "qa", href: "#kit" }, el("i", {}, "✿"), "Brand kit"),
-      el("a", { class: "qa", href: "#brain" }, el("i", {}, "♡"), "Teach the studio")),
+      stat("Videos", videos.length, `${fmtDuration(totalSecs)} filmed`, "🎬", "#footage"),
+      stat("Photos", photos, `${thisWeek.length ? "+" + thisWeek.length : "0"} added this week`, "📸", "#footage"),
+      stat("Instagram", last ? last.followers.toLocaleString() : "Add", growth.target && last ? `${Math.round((last.followers / growth.target) * 100)}% of your goal` : "track your growth below", "✨", "#home"),
+      stat("Brand kit", S.kit.approved ? "Ready" : "To do", S.kit.approved ? pal.name : "pick colours & fonts", "🎀", "#kit")),
     el("div", { class: "home-grid" },
       el("div", { class: "card" },
         el("div", { class: "card-head" }, el("h2", {}, "Recent footage"), el("a", { class: "btn-ghost", href: "#footage" }, "See all →")),
         recent.length ? el("div", { class: "media-grid" }, recent.map((m) => tile(m, () => openMedia(m))))
           : el("div", { class: "drop", onclick: () => pickUpload() }, el("strong", {}, "Nothing here yet."), el("br"), "Tap to add photos and videos from your camera roll.")),
       el("div", { class: "card" },
+        el("div", { class: "card-head" }, el("h2", {}, "Road to your goal"), el("span", { class: "pill-soft" }, last ? last.followers.toLocaleString() + " 💗" : "private")),
+        growthChart(growth),
+        el("div", { class: "goal-row" }, followerInput, targetInput,
+          el("button", { class: "btn-soft", onclick: async () => {
+            const f = num(followerInput.value), t = num(targetInput.value);
+            if (!f && !t) return toast("Type your follower count or goal");
+            if (t) growth.target = t;
+            if (f) { const today = new Date().toISOString().slice(0, 10); growth.points = growth.points.filter((p) => p.date !== today); growth.points.push({ date: today, followers: f }); }
+            await saveGrowth(growth); toast("Saved on this device only ✓"); render();
+          } }, "Save")),
+        el("p", { class: "small muted", style: { margin: "6px 0 0" } }, "Only stored on this device."))),
+    el("div", { class: "home-grid alt" },
+      el("div", { class: "card" },
         el("div", { class: "card-head" }, el("h2", {}, "Moodboard"), el("a", { class: "btn-ghost", href: "#kit" }, "Brand Kit →")),
-        moodboard(pal, pairing, 4),
-        el("p", { class: "small muted", style: { margin: "10px 0 0" } }, S.kit.approved ? `${pal.name} · ${pairing.name}` : "Not chosen yet. Pick your palette and fonts in the Brand Kit."))),
-    el("div", { class: "grid cols-2" },
-      el("div", { class: "card" },
-        el("div", { class: "card-head" }, el("h2", {}, "Content pillars"), el("a", { class: "btn-ghost", href: "#brain" }, "Brand Brain →")),
-        el("div", { class: "pillar-pills" }, S.brand.pillars.map((p, i) => el("span", { class: `pp pp${i}` }, p.name))),
-        el("p", { class: "small muted", style: { marginTop: "12px" } }, S.brand.audience.innerThought ? `Talking to the girl thinking: "${S.brand.audience.innerThought}"` : "")),
-      el("div", { class: "card" },
-        el("h2", {}, "Folders"),
-        el("div", { class: "chips", style: { marginTop: "10px" } }, S.folders.map((f) => {
-          const n = S.media.filter((m) => m.folders?.includes(f.id)).length;
-          return el("a", { class: "chip", href: "#footage", onclick: () => { S.filter = { kind: "all", folder: f.id, fav: false }; } }, f.name, n ? el("span", { class: "muted" }, n) : null);
-        })))),
-    el("div", { class: "card soon" },
-      el("h3", {}, "Coming next"),
-      el("p", { class: "small muted" }, "Multi-clip “Make a vlog” editor with a real timeline, then your hook bank and captions in your voice.")),
+        moodboard(pal, pairing, 5)),
+      el("div", { class: "stack" },
+        el("div", { class: "card" },
+          el("h2", {}, "Quick actions"),
+          el("div", { class: "quick" },
+            el("button", { class: "qa", onclick: () => pickUpload() }, el("i", {}, "📤"), "Upload footage"),
+            el("a", { class: "qa", href: "#create" }, el("i", {}, "🎬"), "Make a reel"),
+            el("a", { class: "qa", href: "#brain" }, el("i", {}, "💗"), "Teach the studio"),
+            el("a", { class: "qa", href: "#kit" }, el("i", {}, "🎀"), "Brand kit"))),
+        el("div", { class: "card pillars-card" },
+          el("div", { class: "card-head" }, el("h2", {}, "Content pillars"), el("a", { class: "btn-ghost", href: "#brain" }, "Brand Brain →")),
+          el("div", { class: "pillar-pills" }, S.brand.pillars.map((p, i) => el("span", { class: `pp pp${i}` }, p.name)))),
+        el("div", { class: "card affirm" },
+          el("p", { class: "affirm-h" }, aff, " 💗"),
+          el("p", { class: "affirm-s" }, "Talking to the girl thinking: “", S.brand.audience.innerThought, "”")))),
   ];
 };
 
