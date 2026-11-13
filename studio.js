@@ -52,7 +52,7 @@ async function refreshMedia() { S.media = await listMedia(); S.folders = await l
 // ---------- navigation ----------
 const NAV = [
   ["home", "Home", "⌂"], ["footage", "My Footage", "▦"], ["create", "Create / Edit", "✂"], ["brain", "Brand Brain", "♡"],
-  ["hooks", "Hook Bank", "❝"], ["inspo", "Inspiration", "✧"], ["calendar", "Content Calendar", "▢"], ["kit", "Brand Kit & Settings", "◐"],
+  ["hooks", "Hook Bank", "❝"], ["inspo", "Inspiration", "✧"], ["calendar", "Content Calendar", "▢"], ["kit", "Brand Kit & Settings", "✿"],
 ];
 function renderNav(page) {
   const links = (cls) => NAV.map(([id, name, ic]) => el("a", { href: `#${id}`, class: id === page ? "on" : "" }, el("span", { class: "ic" }, ic), name));
@@ -126,43 +126,77 @@ function previewFrame(pairing, pal, bgUrl, size = "") {
 }
 
 // ============================================================ HOME
+function greeting() {
+  const h = new Date().getHours();
+  return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
+}
+
+function moodboard(pal, pairing, limit = 7) {
+  // Your own photos (Brand assets / Inspiration first) mixed with colour tiles, like a moodboard.
+  const pref = S.folders.filter((f) => ["Brand assets", "Inspiration"].includes(f.name)).map((f) => f.id);
+  const pics = [...S.media.filter((m) => m.thumb && m.folders?.some((id) => pref.includes(id))), ...S.media.filter((m) => m.thumb)]
+    .filter((m, i, a) => a.findIndex((x) => x.id === m.id) === i).slice(0, limit);
+  const colors = [["pink", "Pink"], ["butter", "Butter"], ["soft", "Soft"], ["text", "White"]].filter(([r]) => pal.colors[r]);
+  const tiles = [];
+  pics.forEach((m, i) => {
+    tiles.push(el("button", { class: "mb-tile mb-photo" + (i === 0 ? " mb-big" : ""), onclick: () => openMedia(m) }, el("img", { src: thumbUrl(m), alt: "" })));
+    if (i < colors.length) { const [r, n] = colors[i]; tiles.push(el("div", { class: "mb-tile mb-color", style: { background: pal.colors[r] } }, el("span", {}, pal.colors[r]))); }
+  });
+  colors.slice(pics.length).forEach(([r]) => tiles.push(el("div", { class: "mb-tile mb-color", style: { background: pal.colors[r] } }, el("span", {}, pal.colors[r]))));
+  tiles.push(el("div", { class: "mb-tile mb-type" },
+    el("span", { style: { fontFamily: `"${pairing.title.family}"`, fontStyle: pairing.title.italic ? "italic" : "normal" } }, "Aa"),
+    el("small", {}, pairing.title.family)));
+  if (!pics.length) tiles.push(el("button", { class: "mb-tile mb-add", onclick: () => pickUpload(S.folders.find((f) => f.name === "Brand assets")?.id) }, "＋ Add your photos"));
+  return el("div", { class: "moodboard" }, tiles);
+}
+
 VIEWS.home = async () => {
   const pal = activePalette(S.kit);
   const pairing = PAIRINGS.find((p) => p.id === S.kit.pairing) || PAIRINGS[0];
   const recent = S.media.slice(0, 10);
+  const videos = S.media.filter((m) => m.kind === "video");
+  const totalSecs = videos.reduce((a, m) => a + (m.duration || 0), 0);
+  const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
+  const stat = (label, value, sub, tone, href) => el("a", { class: `stat ${tone}`, href }, el("small", {}, label), el("b", {}, value), el("span", {}, sub));
   return [
-    el("section", { class: "hero" },
-      el("div", { class: "eyebrow" }, "hey paige"),
-      el("h1", {}, S.brand.identity.message || "Building a life that feels like you."),
-      el("p", { class: "muted" }, "Upload your footage, plan the idea, edit in your brand and export. Your studio, your voice."),
-      el("div", { class: "actions" },
-        el("button", { class: "btn-pink btn-big", onclick: () => pickUpload() }, "＋ Upload footage"),
-        el("a", { class: "btn btn-big", href: "#create" }, "✂ Make a reel"))),
-    el("div", { class: "card" },
-      el("div", { class: "card-head" }, el("h2", {}, "Recent footage"), el("a", { class: "btn-ghost", href: "#footage" }, "See all →")),
-      recent.length ? el("div", { class: "media-grid" }, recent.map((m) => tile(m, () => openMedia(m))))
-        : el("div", { class: "drop", onclick: () => pickUpload() }, el("strong", {}, "Nothing here yet."), el("br"), "Tap to add photos and videos from your camera roll.")),
+    el("section", { class: "greet" },
+      el("div", {},
+        el("h1", {}, `${greeting()}, `, el("em", {}, "Paige"), " ", el("span", { class: "heart" }, "♡")),
+        el("p", { class: "muted" }, "Your little content studio. Upload, create and export, all in your brand.")),
+      el("div", { class: "quote-pill" }, el("small", {}, "your message"), el("span", {}, S.brand.identity.message))),
+    el("div", { class: "stats" },
+      stat("Footage", S.media.length, `${plural(videos.length, "video")} · ${plural(S.media.length - videos.length, "photo")}`, "pink", "#footage"),
+      stat("Filmed", fmtDuration(totalSecs), "of video ready to edit", "butter", "#footage"),
+      stat("Folders", S.folders.length, "Bali, Fashion, Pilates…", "blush", "#footage"),
+      stat("Brand kit", S.kit.approved ? "Approved" : "To do", S.kit.approved ? pal.name : "Pick colours & fonts", S.kit.approved ? "sage" : "butter", "#kit")),
+    el("div", { class: "quick" },
+      el("button", { class: "qa qa-main", onclick: () => pickUpload() }, el("i", {}, "＋"), "Upload footage"),
+      el("a", { class: "qa", href: "#create" }, el("i", {}, "✂"), "Make a reel"),
+      el("a", { class: "qa", href: "#kit" }, el("i", {}, "✿"), "Brand kit"),
+      el("a", { class: "qa", href: "#brain" }, el("i", {}, "♡"), "Teach the studio")),
+    el("div", { class: "home-grid" },
+      el("div", { class: "card" },
+        el("div", { class: "card-head" }, el("h2", {}, "Recent footage"), el("a", { class: "btn-ghost", href: "#footage" }, "See all →")),
+        recent.length ? el("div", { class: "media-grid" }, recent.map((m) => tile(m, () => openMedia(m))))
+          : el("div", { class: "drop", onclick: () => pickUpload() }, el("strong", {}, "Nothing here yet."), el("br"), "Tap to add photos and videos from your camera roll.")),
+      el("div", { class: "card" },
+        el("div", { class: "card-head" }, el("h2", {}, "Moodboard"), el("a", { class: "btn-ghost", href: "#kit" }, "Brand Kit →")),
+        moodboard(pal, pairing, 4),
+        el("p", { class: "small muted", style: { margin: "10px 0 0" } }, S.kit.approved ? `${pal.name} · ${pairing.name}` : "Not chosen yet. Pick your palette and fonts in the Brand Kit."))),
     el("div", { class: "grid cols-2" },
       el("div", { class: "card" },
-        el("div", { class: "card-head" }, el("h2", {}, "Your brand"), el("a", { class: "btn-ghost", href: "#kit" }, "Brand Kit →")),
-        swatchRow(pal, { labels: false }),
-        el("p", { class: "small", style: { marginTop: "12px" } }, el("b", {}, pairing.name), " · ",
-          el("span", { style: { fontFamily: `"${pairing.title.family}"`, fontStyle: pairing.title.italic ? "italic" : "normal", fontSize: "17px" } }, pairing.title.family), " + ",
-          el("span", { style: { fontFamily: `"${pairing.primary.family}"`, fontWeight: pairing.primary.weight } }, pairing.primary.family)),
-        S.kit.approved ? el("span", { class: "tag" }, "Approved ✓") : el("p", { class: "small muted" }, "Not chosen yet. Pick your palette and fonts in the Brand Kit.")),
-      el("div", { class: "card" },
         el("div", { class: "card-head" }, el("h2", {}, "Content pillars"), el("a", { class: "btn-ghost", href: "#brain" }, "Brand Brain →")),
-        el("div", { class: "chips" }, S.brand.pillars.map((p) => el("span", { class: "chip" }, p.name))),
-        el("p", { class: "small muted", style: { marginTop: "12px" } }, S.brand.audience.innerThought ? `Talking to the girl thinking: "${S.brand.audience.innerThought}"` : ""))),
-    el("div", { class: "card" },
-      el("h2", {}, "Folders"),
-      el("div", { class: "chips", style: { marginTop: "10px" } }, S.folders.map((f) => {
-        const n = S.media.filter((m) => m.folders?.includes(f.id)).length;
-        return el("a", { class: "chip", href: "#footage", onclick: () => { S.filter = { kind: "all", folder: f.id, fav: false }; } }, f.name, n ? el("span", { class: "muted" }, n) : null);
-      }))),
+        el("div", { class: "pillar-pills" }, S.brand.pillars.map((p, i) => el("span", { class: `pp pp${i}` }, p.name))),
+        el("p", { class: "small muted", style: { marginTop: "12px" } }, S.brand.audience.innerThought ? `Talking to the girl thinking: "${S.brand.audience.innerThought}"` : "")),
+      el("div", { class: "card" },
+        el("h2", {}, "Folders"),
+        el("div", { class: "chips", style: { marginTop: "10px" } }, S.folders.map((f) => {
+          const n = S.media.filter((m) => m.folders?.includes(f.id)).length;
+          return el("a", { class: "chip", href: "#footage", onclick: () => { S.filter = { kind: "all", folder: f.id, fav: false }; } }, f.name, n ? el("span", { class: "muted" }, n) : null);
+        })))),
     el("div", { class: "card soon" },
-      el("h3", {}, "Coming next: Phase 2"),
-      el("p", { class: "small muted" }, "Content ideas from your actual footage, your personal hook bank, captions in your voice, and the Ask Claude button.")),
+      el("h3", {}, "Coming next"),
+      el("p", { class: "small muted" }, "Multi-clip “Make a vlog” editor with a real timeline, then your hook bank and captions in your voice.")),
   ];
 };
 
@@ -483,6 +517,10 @@ VIEWS.kit = async () => {
           S.kit = kit; S.draftKit = { ...kit }; toast("Brand kit approved ✓"); render();
         } }, "Approve"))),
 
+    el("div", { class: "card" }, el("div", { class: "card-head" }, el("h2", {}, "Your moodboard"),
+      el("button", { class: "btn-soft", onclick: () => pickUpload(S.folders.find((f) => f.name === "Brand assets")?.id) }, "＋ Add photos")),
+      el("p", { class: "small muted", style: { marginTop: 0 } }, "Built from your Brand assets & Inspiration photos plus the palette and fonts you've selected."),
+      moodboard(pal, activePairing(), 9)),
     el("h2", { style: { margin: "26px 0 4px" } }, "Colour palettes"),
     el("p", { class: "small muted", style: { marginTop: 0 } }, "White is your default text colour. Tap a colour to copy its HEX code."),
     el("div", { class: "grid cols-2" }, PALETTES.map((p) => el("div", { class: "card option" + (d.palette === p.id ? " on" : ""), onclick: () => { d.palette = p.id; render(); } },

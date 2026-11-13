@@ -1,6 +1,6 @@
 :root {
-  --bg: #FFFBF8; --surface: #FFFFFF; --ink: #3E2C30; --muted: #94818A; --line: #F2E6E4;
-  --pink: #F5C4D3; --pink-deep: #D9809D; --pink-soft: #FDEEF3;
+  --bg: #FFF7F8; --surface: #FFFFFF; --ink: #3E2C30; --muted: #94818A; --line: #F2E6E4;
+  --pink: #F5C4D3; --pink-deep: #D9809D; --pink-soft: #FDEAF0; --sage: #DDEBDD; --blush: #F8E1D7;
   --butter: #F8E3A3; --butter-soft: #FFF8E1; --ok: #4E9C7B; --err: #C9505F;
   --radius: 18px; --shadow: 0 1px 2px rgba(62,44,48,.04), 0 10px 30px rgba(62,44,48,.06);
   --serif: "Playfair Display", Georgia, serif; --sans: "DM Sans", -apple-system, BlinkMacSystemFont, sans-serif;
@@ -138,3 +138,59 @@ label.field { display: grid; gap: 6px; font-size: 13px; font-weight: 700; color:
 .toast.show { opacity: 1; }
 .soon { border: 1px dashed var(--line); background: transparent; box-shadow: none; }
 .copybox { font-family: ui-monospace, Menlo, monospace; font-size: 12px; white-space: pre-wrap; max-height: 200px; overflow: auto; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+
+/* ---- soft studio look (inspired by Paige's moodboard references) ---- */
+body { background: linear-gradient(180deg, #FFF7F8 0%, #FFFBF6 60%, #FFF9F0 100%) fixed; }
+.side { background: linear-gradient(180deg, #FDEAF0, #FFF4F6 70%, #FFF8EC); border-right: 0; box-shadow: inset -1px 0 0 #F6DCE4; }
+.side nav a.on { background: #fff; color: var(--ink); box-shadow: 0 4px 14px rgba(217,128,157,.18); }
+.side nav a:hover { background: rgba(255,255,255,.7); }
+.brandmark { display: grid; line-height: 1; padding: 0 10px 26px; }
+.brandmark .script { font-family: "Pinyon Script", "Playfair Display", cursive; font-size: 40px; color: var(--pink-deep); }
+.brandmark .caps { font-family: var(--sans); font-size: 10px; letter-spacing: .32em; text-transform: uppercase; color: var(--muted); margin-top: 6px; font-weight: 700; }
+.mob-top .brandmark { padding: 0; display: flex; align-items: baseline; gap: 10px; }
+.mob-top .brandmark .script { font-size: 32px; }
+.card { border-color: #F6E3E7; box-shadow: 0 1px 2px rgba(217,128,157,.06), 0 12px 30px rgba(217,128,157,.08); }
+.greet { display: flex; gap: 20px; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; margin-bottom: 20px; }
+.greet h1 { font-size: 36px; }
+.greet .heart { color: var(--pink-deep); font-family: var(--sans); font-size: 26px; }
+.greet p { margin: 6px 0 0; }
+.quote-pill { background: #fff; border: 1px solid #F6E3E7; border-radius: 18px; padding: 12px 18px; max-width: 360px; box-shadow: 0 8px 24px rgba(217,128,157,.1); }
+.quote-pill small { display: block; font-size: 10px; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+.quote-pill span { font-family: var(--serif); font-style: italic; font-size: 18px; }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 16px; }
+.stat { border-radius: 20px; padding: 16px 18px; text-decoration: none; display: grid; gap: 2px; border: 1px solid rgba(255,255,255,.6); }
+.stat small { font-size: 12px; font-weight: 700; color: rgba(62,44,48,.6); letter-spacing: .02em; }
+.stat b { font-family: var(--serif); font-size: 30px; font-weight: 500; line-height: 1.15; }
+.stat span { font-size: 12px; color: rgba(62,44,48,.6); }
+.stat.pink { background: linear-gradient(135deg, #FDE3EB, #F9D0DD); }
+.stat.butter { background: linear-gradient(135deg, #FFF6D6, #FBE7A9); }
+.stat.blush { background: linear-gradient(135deg, #FDEEE8, #F6DACD); }
+.stat.sage { background: linear-gradient(135deg, #EEF6EE, #D8E9D8); }
+.quick { display: flex; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; }
+.qa { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px 10px 10px; border-radius: 999px; background: #fff; border: 1px solid #F6E3E7;
+  font-weight: 600; font-size: 15px; text-decoration: none; min-height: 48px; box-shadow: 0 6px 16px rgba(217,128,157,.08); }
+.qa i { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--pink-soft); font-style: normal; color: var(--pink-deep); }
+.qa-main { background: var(--ink); color: #fff; border-color: var(--ink); }
+.qa-main i { background: var(--pink); color: var(--ink); }
+.home-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; }
+.home-grid .media-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
+.moodboard { display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: 92px; gap: 8px; }
+.mb-tile { border-radius: 12px; overflow: hidden; position: relative; border: 0; padding: 0; min-height: 0; display: block; }
+.mb-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.mb-big { grid-row: span 2; }
+.mb-color span { position: absolute; left: 8px; bottom: 6px; font-size: 10px; font-weight: 700; color: rgba(62,44,48,.65); letter-spacing: .04em; }
+.mb-color { border: 1px solid rgba(62,44,48,.06); }
+.mb-type { background: #fff; border: 1px solid #F6E3E7; display: grid; place-items: center; align-content: center; }
+.mb-type span { font-size: 34px; line-height: 1; color: var(--pink-deep); }
+.mb-type small { font-size: 10px; color: var(--muted); margin-top: 4px; }
+.mb-add { background: var(--pink-soft); color: var(--pink-deep); font-weight: 700; font-size: 13px; }
+.pillar-pills { display: flex; flex-wrap: wrap; gap: 8px; }
+.pp { padding: 8px 14px; border-radius: 999px; font-weight: 700; font-size: 14px; }
+.pp0 { background: #FDE3EB; } .pp1 { background: #FFF2C7; } .pp2 { background: #DFEFEF; } .pp3 { background: #FBE6DC; }
+.tile { border-radius: 16px; }
+@media (max-width: 900px) {
+  .stats { grid-template-columns: repeat(2, 1fr); }
+  .home-grid { grid-template-columns: 1fr; }
+  .greet h1 { font-size: 30px; }
+  .quote-pill { max-width: none; width: 100%; }
+}
