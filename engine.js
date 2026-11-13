@@ -25,7 +25,7 @@ export async function analyseBuffer(audio) {
   src.connect(off.destination);
   src.start();
   const pcm = (await off.startRendering()).getChannelData(0);
-  return analysePCM(pcm, audio.duration);
+  return { ...analysePCM(pcm, audio.duration), full: audio };
 }
 
 export function analysePCM(pcm, duration) {

@@ -31,6 +31,8 @@ const P = {
 };
 const media = new Map();        // mediaId -> {meta, url, thumbUrl, bmp}
 const transcripts = new Map();  // mediaId -> {words, sentences}
+const voices = new Map();       // mediaId -> {rate, data: Float32Array}  exact sound of each clip, for sample-perfect cuts
+const VOICE_RATE = 24000;
 let music = null, series = null, look = null, palette = null, capLook = null;
 let groups = [];
 let selected = 0;
@@ -99,6 +101,24 @@ function tidyTimings(words) {
   });
 }
 
+const SOUNDS = new Set(["oh", "ooh", "ah", "ahh", "uh", "uhh", "um", "umm", "uhm", "erm", "er", "hmm", "mm", "mmm", "eh"]);
+const OPENERS = new Set(["so", "okay", "ok", "like", "well", "yeah", "right", "anyway", "basically", "honestly", "literally", "and", "but", "um", "oh"]);
+const bare = (t) => t.toLowerCase().replace(/[^a-z']/g, "");
+function dropFillers(words) {
+  const out = [], skip = new Set();
+  words.forEach((w, i) => {
+    const b = bare(w.text), prev = words[i - 1];
+    if (SOUNDS.has(b)) return;                                    // oh, ah, um, hmm…
+    const startOfThought = !out.length || /[.!?]$/.test(out[out.length - 1].text.trim()) || (prev && w.start - prev.end > GAP);
+    if (/,$/.test(w.text.trim()) && OPENERS.has(b) && startOfThought) return;   // "So, …", "Okay, …", "Like, …"
+    if (b === "like" && /,$/.test(w.text.trim()) && prev && /,$/.test(prev.text.trim())) return;   // "…, like, …"
+    if (skip.has(i)) return;
+    if (b === "you" && bare(words[i + 1]?.text || "") === "know" && /,$/.test(words[i + 1].text.trim())) { skip.add(i + 1); return; }
+    out.push(w);
+  });
+  return out;
+}
+
 // Splits what you said into clean spoken segments: removes restarts, repeats, ums and pauses.
 function speechSegments(id, range = null, exclude = []) {
   const tr = transcripts.get(id);
@@ -106,7 +126,7 @@ function speechSegments(id, range = null, exclude = []) {
   const mid = (w) => (w.start + w.end) / 2;
   let words = tr.words.filter((w) => !exclude.some(([a, b]) => mid(w) >= a && mid(w) <= b));
   if (range) words = words.filter((w) => mid(w) >= range[0] && mid(w) <= range[1]);
-  words = tidyTimings(words);
+  words = dropFillers(tidyTimings(words));
   const cuts = blooperCuts(words, { bloopers: !range, fillers: true });
   const kept = words.filter((w) => !cuts.some((c) => (w.start + w.end) / 2 >= c.start && (w.start + w.end) / 2 <= c.end));
   const segs = [];
@@ -194,7 +214,20 @@ async function loadMedia(ids) {
     media.set(id, entry);
     const tr = await db.getValue(`tr:${id}`, null);
     if (tr) transcripts.set(id, tr);
+    const au = await db.getValue(`au:${id}`, null).catch(() => null);
+    if (au?.data) voices.set(id, { rate: au.rate, data: Float32Array.from(au.data, (x) => x / 32767) });
   }
+}
+// keeps a 24 kHz copy of a clip's sound (small, plenty for a voice) so cuts can be sample-exact
+async function keepVoice(id, full) {
+  const len = Math.max(1, Math.ceil(full.duration * VOICE_RATE));
+  const off = new OfflineAudioContext(1, len, VOICE_RATE);
+  const src = off.createBufferSource(); src.buffer = full; src.connect(off.destination); src.start();
+  const data = (await off.startRendering()).getChannelData(0);
+  voices.set(id, { rate: VOICE_RATE, data: new Float32Array(data) });
+  const i16 = new Int16Array(data.length);
+  for (let i = 0; i < data.length; i++) i16[i] = Math.max(-1, Math.min(1, data[i])) * 32767;
+  await db.setValue(`au:${id}`, { rate: VOICE_RATE, data: i16 }).catch(() => {});
 }
 
 // ---------------- understanding speech ----------------
@@ -250,13 +283,12 @@ async function understand(auto = false) {
   let wake = null; try { wake = await navigator.wakeLock?.request("screen"); } catch {}
   try {
     audioSetup();
-    const videos = P.sources.filter((id) => media.get(id)?.meta.kind === "video" && !transcripts.has(id));
+    const videos = P.sources.filter((id) => media.get(id)?.meta.kind === "video" && (!transcripts.has(id) || !voices.has(id)));
     for (let k = 0; k < videos.length; k++) {
       const id = videos[k], m = media.get(id);
       const label = `Clip ${P.sources.indexOf(id) + 1} of ${P.sources.length}`;
-      let words = [];
-      if (TEST) words = (window.__fakeTranscripts || {})[m.meta.name] || [];
-      else {
+      let words = transcripts.get(id)?.words || null;
+      {
         let analysis;
         status(`${label}: reading the sound…`);
         try {
@@ -269,9 +301,15 @@ async function understand(auto = false) {
           await new Promise((r) => { v.onloadedmetadata = r; v.load(); setTimeout(r, 5000); });
           analysis = await captureAudio(v, { ctx: actx, src, monitor: actx.createGain() }, (p) => status(`${label}: listening ${Math.round(p * 100)}% (keep this screen open)`));
         }
-        status(`${label}: listening to what you say…`);
-        const out = await transcribePCM(analysis.pcm, (t) => status(`${label}: ${t}`));
-        words = wordsFromASR(out, analysis.duration);
+        if (analysis.full) await keepVoice(id, analysis.full);
+        if (!words) {
+          if (TEST) words = (window.__fakeTranscripts || {})[m.meta.name] || [];
+          else {
+            status(`${label}: listening to what you say…`);
+            const out = await transcribePCM(analysis.pcm, (t) => status(`${label}: ${t}`));
+            words = wordsFromASR(out, analysis.duration);
+          }
+        }
       }
       const tr = { words, sentences: toSentences(words) };
       transcripts.set(id, tr);
@@ -314,15 +352,15 @@ ${lines}
 
 ${HER_RULES}
 Build the edit for HER: open with the line that makes her think "that's literally me", keep the parts that are useful or relatable to her life, and end on what it means for her.
-Edit it like a good editor: pick the best sentences in the order that tells the story clearly, cut repeats, rambling, mistakes and anything that doesn't fit. You can reorder sentences and clips, and place b-roll/photos between sentences (or at the start/end) to break up talking. Aim for under ~60 seconds unless the story needs more. Open with the strongest line.
+Edit it like a good editor: keep ONLY the most valuable words. Pick the best sentences in the order that tells the story clearly; cut repeats, rambling, throat-clearing ("oh", "so yeah", "okay so", "I don't know"), mistakes and anything that doesn't fit. If only part of a sentence is good, keep just that part with "keep" (copy those words exactly, in order, from the sentence). Every line in the final edit must make sense on its own and lead into the next. You can reorder sentences and clips, and place b-roll/photos between sentences (or at the start/end) to break up talking. Aim for under ~60 seconds unless the story needs more. Open with the strongest line.
 
 Reply with ONLY one JSON code block:
 \`\`\`json
 {"title": "short on-screen hook about HER, in my voice",
- "edit": [{"clip": "A", "sentences": [2, 3]}, {"clip": "C"}, {"clip": "B", "sentences": [1]}],
+ "edit": [{"clip": "A", "sentences": [2]}, {"clip": "A", "sentences": [3], "keep": "the exact words to keep from A3"}, {"clip": "C"}, {"clip": "B", "sentences": [1]}],
  "why": "one line on the story you built"}
 \`\`\`
-(For b-roll or photos just give the clip letter.)`;
+(For b-roll or photos just give the clip letter. Use "keep" only with one sentence at a time.)`;
 }
 $("askStory").onclick = async () => {
   P.goal = $("goalIn").value.trim();
@@ -357,7 +395,19 @@ function applyStory(data) {
       const tr = transcripts.get(id);
       e.sentences.forEach((n) => {
         const s = tr.sentences.find((x) => x.i === Number(String(n).replace(/\D/g, "")));
-        if (s) pushItems(items, id, speechSegments(id, [s.start - 0.01, s.end + 0.01]));
+        if (!s) return;
+        let range = [s.start - 0.01, s.end + 0.01];
+        if (e.keep && e.sentences.length === 1) {
+          // find the words Claude chose inside this sentence
+          const inS = tr.words.filter((w) => w.start >= s.start - 0.01 && w.end <= s.end + 0.01);
+          const want = String(e.keep).split(/\s+/).map(bare).filter(Boolean);
+          const have = inS.map((w) => bare(w.text));
+          let best = null;
+          for (let a = 0; a < have.length; a++) if (have[a] === want[0])
+            for (let z = have.length - 1; z >= a; z--) if (have[z] === want[want.length - 1]) { if (!best || z - a < best[1] - best[0]) best = [a, z]; break; }
+          if (best) range = [inS[best[0]].start - 0.01, inS[best[1]].end + 0.01];
+        }
+        pushItems(items, id, speechSegments(id, range));
       });
     } else {
       const b = brollItem(id, k, entries.length);
@@ -558,8 +608,9 @@ function alphaFor(i, t, tm) {
   return Math.max(0, Math.min(1, a));
 }
 
-function drawAt(ctx, cw, ch, t, tm) {
+function drawAt(ctx, cw, ch, t, tm, hold = null) {
   ctx.fillStyle = "#000"; ctx.fillRect(0, 0, cw, ch);
+  let missing = false;
   P.clips.forEach((c, i) => {
     const s = tm.starts[i], e = s + c.len;
     if (t < s || t > e) return;
@@ -571,6 +622,8 @@ function drawAt(ctx, cw, ch, t, tm) {
     if (c.kind === "photo") { const b = media.get(c.mediaId)?.bmp; if (b) drawCover(ctx, b, b.width, b.height, 1.02 + push, cw, ch); }
     else {
       const v = elOf(i);
+      // not ready yet (still seeking/loading)? show the last good frame instead of a glitch
+      if (hold && (v.readyState < 2 || v.seeking)) { missing = true; return; }
       const f = c.speech && P.match !== false ? framing(c, i, t, s) : null;
       if (f) {
         ctx.save();
@@ -581,6 +634,10 @@ function drawAt(ctx, cw, ch, t, tm) {
     }
   });
   ctx.globalAlpha = 1;
+  if (hold) {
+    const hx = hold.getContext("2d");
+    if (missing) ctx.drawImage(hold, 0, 0, cw, ch); else hx.drawImage(ctx.canvas, 0, 0, hold.width, hold.height);
+  }
   if (P.captions && groups.length && capLook) drawCaptions(ctx, cw, ch, { captionsOn: true, plan: { groups }, look: capLook, palette }, t);
   if (P.title || P.sub) drawHook(ctx, cw, ch, { hook: P.title, sub: P.sub, look, palette }, t);
 }
@@ -601,6 +658,33 @@ function buildGroups(tm) {
   groups = words.length ? groupWords(words, capLook?.captions.words || 4) : [];
 }
 
+// The finished voice track: the exact sound of every piece, laid end to end with tiny fades.
+// Playback follows THIS (not the videos), so sentences never overlap or get cut off at a join.
+function canUseVoices() {
+  return P.clips.every((c) => c.kind !== "video" || c.muted || voices.has(c.mediaId));
+}
+function buildVoice(tm) {
+  const rate = VOICE_RATE;
+  const out = actx.createBuffer(1, Math.max(1, Math.ceil(tm.total * rate) + rate), rate);
+  const o = out.getChannelData(0);
+  P.clips.forEach((c, i) => {
+    if (c.kind !== "video" || c.muted) return;
+    const v = voices.get(c.mediaId); if (!v) return;
+    const from = Math.round(c.inT * v.rate), n = Math.round(c.len * rate), at = Math.round(tm.starts[i] * rate);
+    const fin = Math.max(Math.round(0.012 * rate), Math.round((c.xfIn || 0) * rate));
+    const nx = P.clips[i + 1];
+    const fout = Math.max(Math.round(0.012 * rate), Math.round((nx?.xfIn || 0) * rate));
+    for (let k = 0; k < n; k++) {
+      const x = v.data[from + k]; if (x === undefined) break;
+      let g = P.clipVol;
+      if (k < fin) g *= k / fin;
+      if (n - k < fout) g *= (n - k) / fout;
+      if (at + k < o.length) o[at + k] += x * g;
+    }
+  });
+  return out;
+}
+
 let running = null;
 // Plays the edit, drawing to ctx. The clock follows the playing video itself, so a clip that
 // starts a moment late never causes a freeze-then-jump. Used for preview and export.
@@ -612,12 +696,22 @@ async function run(ctx, cw, ch, { recording = false, onProgress } = {}) {
   const token = {}; running = token;
   await Promise.all([prepare(0), prepare(1), prepare(2)]);
   const started = new Set(), ended = new Set(), rolling = new Set();
-  let musicNode = null;
+  try { await actx.resume(); } catch {}
+  const exact = canUseVoices() && actx.state === "running";
+  const hold = document.createElement("canvas"); hold.width = cw; hold.height = ch;
+  const lastFix = new Map();
+  let musicNode = null, voiceNode = null;
+  const t0 = actx.currentTime + 0.12;
+  if (exact) {
+    voiceNode = actx.createBufferSource(); voiceNode.buffer = buildVoice(tm);
+    voiceNode.connect(monitor); voiceNode.connect(recDest);
+    voiceNode.start(t0);
+  }
   if (music) {
     musicNode = actx.createBufferSource(); musicNode.buffer = music.buffer;
     const mg = actx.createGain(); mg.gain.value = P.musicVol;
     musicNode.connect(mg); mg.connect(monitor); mg.connect(recDest);
-    musicNode.start(0, 0);
+    musicNode.start(exact ? t0 : 0, 0);
   }
   let lastT = 0, lastWall = performance.now(), holdSince = null;
   await new Promise((resolve) => {
@@ -626,6 +720,8 @@ async function run(ctx, cw, ch, { recording = false, onProgress } = {}) {
       const now = performance.now();
       let t = lastT + (now - lastWall) / 1000;
       lastWall = now;
+      if (exact) t = Math.max(0, actx.currentTime - t0);   // the sound is the clock: rock steady
+      else {
       // follow the most recent playing video
       let drv = -1;
       for (const i of started) if (!ended.has(i) && P.clips[i].kind === "video" && i > drv) drv = i;
@@ -633,6 +729,7 @@ async function run(ctx, cw, ch, { recording = false, onProgress } = {}) {
         const v = elOf(drv);
         if (!v.paused && v.readyState >= 2) { holdSince = null; t = Math.max(lastT, Math.min(t + 0.2, tm.starts[drv] + (v.currentTime - P.clips[drv].inT))); }
         else if (!v.ended) { holdSince ??= now; if (now - holdSince < 1500) t = lastT; }   // wait for it to start (max 1.5s)
+      }
       }
       lastT = t;
       P.clips.forEach((c, i) => {
@@ -646,14 +743,22 @@ async function run(ctx, cw, ch, { recording = false, onProgress } = {}) {
           prepare(i + pool.length);
         }
         if (c.kind === "video" && rolling.has(i) && !started.has(i)) gains[i % pool.length].gain.value = 0;   // pre-roll: silent
-        if (c.kind === "video" && started.has(i) && !ended.has(i)) {
+        if (exact && c.kind === "video") {
+          gains[i % pool.length].gain.value = 0;   // the voice track carries the sound
+          if (started.has(i) && !ended.has(i)) {
+            // keep the picture in step with the sound
+            const v = elOf(i), want = c.inT + (t - s);
+            if (!v.seeking && Math.abs(v.currentTime - want) > 0.18 && now - (lastFix.get(i) || 0) > 600) { lastFix.set(i, now); v.currentTime = want; }
+            if (v.paused && !v.ended) v.play().catch(() => {});
+          }
+        } else if (c.kind === "video" && started.has(i) && !ended.has(i)) {
           // tiny fades (30ms) at every cut = no clicks or pops; longer fades for dissolves
           const fi = Math.max(0.03, c.xfIn || 0), fo = Math.max(0.03, P.clips[i + 1]?.xfIn || 0);
           const a = Math.max(0, Math.min(1, (t - s) / fi, (e - t) / fo));
           gains[i % pool.length].gain.value = c.muted ? 0 : a * P.clipVol;
         }
       });
-      drawAt(ctx, cw, ch, Math.min(t, tm.total - 0.02), tm);
+      drawAt(ctx, cw, ch, Math.min(t, tm.total - 0.02), tm, hold);
       onProgress?.(t / Math.max(0.01, tm.total), t);
       if (t >= tm.total) return resolve();
       requestAnimationFrame(frame);
@@ -663,6 +768,7 @@ async function run(ctx, cw, ch, { recording = false, onProgress } = {}) {
   pool.forEach((v) => v.pause());
   gains.forEach((g) => g && (g.gain.value = 0));
   try { musicNode?.stop(); } catch {}
+  try { voiceNode?.stop(); } catch {}
   if (running === token) running = null;
 }
 function stop() { running = null; pool.forEach((v) => v.pause()); }
@@ -960,7 +1066,7 @@ $("saveBtn").onclick = async () => { try { await navigator.share({ files: [lastF
     await applyLook();
   }
   const hasVideo = P.sources.some((id) => media.get(id)?.meta.kind === "video");
-  const known = P.sources.filter((id) => media.get(id)?.meta.kind === "video").every((id) => transcripts.has(id));
+  const known = P.sources.filter((id) => media.get(id)?.meta.kind === "video").every((id) => transcripts.has(id) && voices.has(id));
   $("flowStatus").textContent = !hasVideo ? "Only photos, so no speech to listen to." : known ? speechSummary() || "These clips have no talking, so they're edited as b-roll."
     : "Talking in these clips? Tap below so the edit follows what you say: whole sentences, in order, with pauses, ums and restarts cut.";
   if (known) { $("flowBtn").textContent = "🎙 Listen again"; }
@@ -973,5 +1079,5 @@ $("saveBtn").onclick = async () => { try { await navigator.share({ files: [lastF
   renderHookIdeas();
   refresh();
   if (!P.clips.length) openPicker();
-  window.__P = P; window.__transcripts = transcripts;
+  window.__P = P; window.__transcripts = transcripts; window.__voices = voices;
 })();
