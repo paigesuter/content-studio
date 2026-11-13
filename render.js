@@ -157,13 +157,14 @@ function drawHook(ctx, W, H, st, outT) {
 export function drawFrame(ctx, W, H, video, st, t = video.currentTime) {
   ctx.fillStyle = "#000";
   ctx.fillRect(0, 0, W, H);
-  if (!st.plan || !video.videoWidth) return;
-  const z = zoomAt(st.plan.keeps, t, st.look.zoom.strength);
+  if (!video.videoWidth) return;
+  const z = st.plan ? zoomAt(st.plan.keeps, t, st.look.zoom.strength) : 1;
   const vw = video.videoWidth, vh = video.videoHeight;
   const scale = Math.max(W / vw, H / vh) * z;
   const dw = vw * scale, dh = vh * scale;
   const fy = z > 1 ? 0.38 : 0.5; // punch in slightly towards your face
   ctx.drawImage(video, (W - dw) * 0.5, (H - dh) * fy, dw, dh);
+  if (!st.plan) return;
   drawCaptions(ctx, W, H, st, t);
   drawHook(ctx, W, H, st, outputTime(st.plan.keeps, t));
 }

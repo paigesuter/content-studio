@@ -1,6 +1,6 @@
-import { analyseAudio, buildPlan, wordsFromASR } from "./engine.js";
+import { analyseAudio, captureAudio, buildPlan, wordsFromASR } from "./engine.js";
 import { LOOKS, PALETTES, FONT_LOADS } from "./looks.js";
-import { Player, drawFrame, exportVideo } from "./render.js";
+import { Player, drawFrame, exportVideo, audioGraph } from "./render.js";
 
 const $ = (id) => document.getElementById(id);
 const TEST = new URLSearchParams(location.search).has("test");
@@ -93,18 +93,45 @@ async function loadClip(file) {
   setStatus("Opening your clip…");
   if (video.src) URL.revokeObjectURL(video.src);
   video.src = URL.createObjectURL(file);
-  await new Promise((res, rej) => { video.onloadeddata = res; video.onerror = () => rej(new Error("This video couldn't be opened")); video.load(); })
-    .catch((e) => setStatus(e.message));
+  await new Promise((res, rej) => {
+    video.onloadedmetadata = res;
+    video.onerror = () => rej(new Error("This video couldn't be opened"));
+    video.load();
+    setTimeout(res, 8000);
+  }).catch((e) => setStatus(e.message));
   setStatus("Finding the pauses…");
   try {
+    if (TEST && new URLSearchParams(location.search).has("scan")) throw new Error("test: force scan");
     state.analysis = await analyseAudio(file);
   } catch (e) {
-    setStatus("Couldn't read the sound in this clip. Is it a video with audio?");
+    // Safari often can't decode iPhone .MOV sound directly, so use the backup way (needs a tap).
+    askToScan(e);
     return;
   }
+  afterAnalysis();
+}
+
+function afterAnalysis() {
   rebuild();
-  await player.seekStart();
+  player.seekStart();
   listen();
+}
+
+function askToScan(err) {
+  setStatus(`<button id="scanBtn" class="scan-btn">Tap to scan the sound</button><br>
+    <span class="small">The app plays your clip once, silently, to hear where you talk (takes as long as the clip).</span>`);
+  $("scanBtn").onclick = async () => {
+    try {
+      const graph = audioGraph(video);
+      await keepAwake(true);
+      state.analysis = await captureAudio(video, graph, (p) => setStatus(`Scanning the sound… <b>${Math.round(p * 100)}%</b><br>Keep this screen open.`));
+      afterAnalysis();
+    } catch (e) {
+      setStatus(`Couldn't read the sound in this clip (${e.message || e}). Is it a video with audio?`);
+    } finally {
+      keepAwake(false);
+    }
+  };
 }
 
 // ---------- captions (speech-to-text on the phone) ----------

@@ -71,3 +71,5 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
   .stage { position: sticky; top: 76px; }
   .frame { width: 360px; }
 }
+.scan-btn { background: var(--accent); color: #fff; border: 0; border-radius: 12px; padding: 12px 18px;
+  font-weight: 700; margin-bottom: 6px; }

@@ -3,6 +3,7 @@
 
 // ---------- sound ----------
 
+// Quick way: decode the sound straight from the file (works for many files, not all).
 export async function analyseAudio(file) {
   const AC = window.AudioContext || window.webkitAudioContext;
   const ctx = new AC();
@@ -12,7 +13,11 @@ export async function analyseAudio(file) {
   } finally {
     ctx.close?.();
   }
-  // 16 kHz mono copy for speech recognition
+  return analyseBuffer(audio);
+}
+
+// Turns any decoded sound into the 16 kHz copy + loudness map the editor needs.
+export async function analyseBuffer(audio) {
   const len = Math.max(1, Math.ceil(audio.duration * 16000));
   const off = new OfflineAudioContext(1, len, 16000);
   const src = off.createBufferSource();
@@ -20,9 +25,11 @@ export async function analyseAudio(file) {
   src.connect(off.destination);
   src.start();
   const pcm = (await off.startRendering()).getChannelData(0);
+  return analysePCM(pcm, audio.duration);
+}
 
-  // Loudness every 20 ms, in decibels
-  const hop = 320;
+export function analysePCM(pcm, duration) {
+  const hop = 320; // 20 ms at 16 kHz
   const n = Math.floor(pcm.length / hop);
   const env = new Float32Array(n);
   for (let i = 0; i < n; i++) {
@@ -30,7 +37,53 @@ export async function analyseAudio(file) {
     for (let j = i * hop; j < (i + 1) * hop; j++) sum += pcm[j] * pcm[j];
     env[i] = 10 * Math.log10(sum / hop + 1e-10);
   }
-  return { pcm, env, hop: hop / 16000, duration: audio.duration };
+  return { pcm, env, hop: hop / 16000, duration };
+}
+
+// Backup way (works on every iPhone video): quietly play the clip once and record its sound.
+// `graph` comes from render.js audioGraph(video). Must be started from a tap.
+export async function captureAudio(video, graph, onProgress) {
+  const { ctx, src, monitor } = graph;
+  if (ctx.state === "suspended") await ctx.resume();
+  const proc = ctx.createScriptProcessor(4096, 1, 1);
+  const parts = [];
+  let recording = false;
+  proc.onaudioprocess = (e) => { if (recording) parts.push(new Float32Array(e.inputBuffer.getChannelData(0))); };
+  src.connect(proc);
+  proc.connect(ctx.destination); // outputs silence; needed to keep it running
+  monitor.gain.value = 0; // don't play out loud
+  try {
+    video.pause();
+    if (video.currentTime > 0.01) {
+      await new Promise((r) => { video.addEventListener("seeked", r, { once: true }); video.currentTime = 0; });
+    }
+    recording = true;
+    await video.play();
+    await new Promise((res, rej) => {
+      const tick = () => {
+        if (video.ended || video.currentTime >= video.duration - 0.05) return res();
+        if (video.error) return rej(new Error("playback stopped"));
+        onProgress?.(video.currentTime / video.duration);
+        setTimeout(tick, 250);
+      };
+      tick();
+    });
+  } finally {
+    recording = false;
+    video.pause();
+    src.disconnect(proc);
+    proc.disconnect();
+    monitor.gain.value = 1;
+  }
+  const total = parts.reduce((a, p) => a + p.length, 0);
+  if (!total) throw new Error("no sound was recorded");
+  const buf = ctx.createBuffer(1, total, ctx.sampleRate);
+  const ch = buf.getChannelData(0);
+  let o = 0;
+  for (const p of parts) { ch.set(p, o); o += p.length; }
+  const analysis = await analyseBuffer(buf);
+  analysis.duration = video.duration; // trust the video's own length
+  return analysis;
 }
 
 function percentile(arr, p) {
