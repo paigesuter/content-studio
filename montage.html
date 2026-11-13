@@ -34,6 +34,7 @@
       <button id="flowBtn" class="big-btn">🎙 Listen to what I'm saying</button>
       <label class="toggle"><input type="checkbox" id="capToggle" checked> Captions on what I say</label>
       <div id="storyBox" hidden>
+        <h3 style="margin-top:10px">✧ Make it make sense</h3>
         <label class="field">What's this video about? <input id="goalIn" type="text" placeholder="e.g. why I moved to Australia with no plan"></label>
         <button id="askStory" class="claude-btn">✧ Ask Claude to edit the story</button>
         <p class="small muted">Claude reads every sentence from every clip and puts the best ones in the order that makes sense, with b-roll in between.</p>
@@ -67,7 +68,8 @@
         <button class="chip" data-pace="snappy">Snappy</button>
       </div>
       <p class="small muted">Changing pace re-does the first edit (undo brings yours back).</p>
-      <div class="chips"><button class="chip" data-tr="fade">Smooth dissolves between clips</button><button class="chip" data-tr="cut">Straight cuts</button></div>
+      <div class="chips"><button class="chip" data-tr="cut">Clean cuts</button><button class="chip" data-tr="fade">Soft dissolves</button></div>
+      <label class="toggle"><input type="checkbox" id="punchToggle"> Zoom in a little on jump cuts</label>
     </div>
 
     <div class="card">

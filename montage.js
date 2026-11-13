@@ -26,7 +26,7 @@ const P = {
   sources: [],           // media ids in the order you picked them
   clips: [],             // timeline items: {mediaId, kind, duration, inT, len, muted, xfIn, zoom, speech}
   seriesId: null, title: "", sub: "", ep: { n: 1, date: new Date().toISOString().slice(0, 10), word: "", place: "" },
-  pace: "smooth", transition: "fade", clipVol: 1, musicVol: 0.6, captions: true, goal: "",
+  pace: "smooth", transition: "cut", punch: false, clipVol: 1, musicVol: 0.6, captions: true, goal: "",
 };
 const media = new Map();        // mediaId -> {meta, url, thumbUrl, bmp}
 const transcripts = new Map();  // mediaId -> {words, sentences}
@@ -35,7 +35,7 @@ let groups = [];
 let selected = 0;
 const undoStack = [], redoStack = [];
 
-const snapshot = () => JSON.stringify({ sources: P.sources, clips: P.clips, title: P.title, pace: P.pace, transition: P.transition,
+const snapshot = () => JSON.stringify({ sources: P.sources, clips: P.clips, title: P.title, pace: P.pace, transition: P.transition, punch: P.punch,
   clipVol: P.clipVol, musicVol: P.musicVol, captions: P.captions, goal: P.goal });
 function remember() { undoStack.push(snapshot()); if (undoStack.length > 60) undoStack.shift(); redoStack.length = 0; updateUndo(); }
 function restore(s) { Object.assign(P, JSON.parse(s)); selected = Math.max(0, Math.min(selected, P.clips.length - 1)); $("titleIn").value = P.title; refresh(); }
@@ -77,11 +77,12 @@ function brollItem(id, i, n) {
 }
 
 // Splits what you said into clean spoken segments: removes restarts, repeats, ums and pauses.
-function speechSegments(id, range = null) {
+function speechSegments(id, range = null, exclude = []) {
   const tr = transcripts.get(id);
   const dur = media.get(id).meta.duration || 0;
-  let words = tr.words;
-  if (range) words = words.filter((w) => (w.start + w.end) / 2 >= range[0] && (w.start + w.end) / 2 <= range[1]);
+  const mid = (w) => (w.start + w.end) / 2;
+  let words = tr.words.filter((w) => !exclude.some(([a, b]) => mid(w) >= a && mid(w) <= b));
+  if (range) words = words.filter((w) => mid(w) >= range[0] && mid(w) <= range[1]);
   const cuts = blooperCuts(words, { bloopers: !range, fillers: true });
   const kept = words.filter((w) => !cuts.some((c) => (w.start + w.end) / 2 >= c.start && (w.start + w.end) / 2 <= c.end));
   const segs = [];
@@ -104,18 +105,42 @@ function pushItems(items, id, segs) {
     const prev = items[items.length - 1];
     if (prev && prev.mediaId === id && Math.abs(prev.inT + prev.len - s.inT) < 0.06) { prev.len = +(prev.len + s.len).toFixed(3); return; }
     const sameSource = prev && prev.mediaId === id;
-    const zoom = sameSource ? (prev.zoom > 1 ? 1 : 1.1) : 1;   // jump cuts alternate a gentle punch-in
+    const zoom = sameSource && P.punch ? (prev.zoom > 1 ? 1 : 1.1) : 1;   // optional punch-in on jump cuts
     items.push({ mediaId: id, kind: "video", duration: m.duration || 0, inT: s.inT, len: s.len, muted: false,
       xfIn: !prev || sameSource ? 0 : (P.transition === "fade" ? SPEECH_DISSOLVE : 0), zoom, speech: true });
   });
 }
 
+// Finds repeated takes ACROSS clips (same line said again in a later clip) and half-finished fragments.
+// The later take is usually the better one, so earlier ones are dropped.
+let droppedTakes = 0, droppedFragments = 0;
+function repeatsAcrossClips() {
+  const toks = (t) => t.toLowerCase().replace(/[^a-z0-9' ]+/g, " ").split(/\s+/).filter((w) => w && !["um", "uh", "like", "so", "and", "the", "a"].includes(w));
+  const all = [];
+  P.sources.forEach((id) => { if (isSpeech(id)) transcripts.get(id).sentences.forEach((s) => all.push({ id, s, t: toks(s.text) })); });
+  const drop = new Map();
+  const add = (id, s) => { if (!drop.has(id)) drop.set(id, []); drop.get(id).push([s.start - 0.01, s.end + 0.01]); };
+  droppedTakes = 0; droppedFragments = 0;
+  all.forEach((a, i) => {
+    if (a.t.length >= 3 && all.slice(i + 1).some((b) => {
+      if (b.t.length < 3) return false;
+      const B = new Set(b.t);
+      const common = a.t.filter((w) => B.has(w)).length;
+      return common / Math.min(a.t.length, b.t.length) >= 0.7;
+    })) { add(a.id, a.s); droppedTakes++; return; }
+    const words = a.s.text.split(/\s+/).length;
+    if (all.length > 1 && words <= 2 && !/[.!?]$/.test(a.s.text.trim())) { add(a.id, a.s); droppedFragments++; }
+  });
+  return drop;
+}
+
 function autoEdit() {
   const items = [];
   const n = P.sources.length;
+  const drop = repeatsAcrossClips();
   P.sources.forEach((id, i) => {
     if (!media.has(id)) return;
-    if (isSpeech(id)) pushItems(items, id, speechSegments(id));
+    if (isSpeech(id)) pushItems(items, id, speechSegments(id, null, drop.get(id) || []));
     else {
       const b = brollItem(id, i, n);
       b.xfIn = items.length && P.transition === "fade" ? DISSOLVE : 0;
@@ -128,7 +153,8 @@ function autoEdit() {
 function speechSummary() {
   const talking = P.sources.filter(isSpeech);
   const sentences = talking.reduce((a, id) => a + transcripts.get(id).sentences.length, 0);
-  return talking.length ? `🎙 Heard you in ${talking.length} clip${talking.length > 1 ? "s" : ""} (${sentences} sentences). Cut on whole sentences, with pauses, ums and restarts removed.` : "";
+  const extra = [droppedTakes ? `${droppedTakes} repeated take${droppedTakes > 1 ? "s" : ""} across clips` : "", droppedFragments ? `${droppedFragments} half-finished bit${droppedFragments > 1 ? "s" : ""}` : ""].filter(Boolean).join(" and ");
+  return talking.length ? `🎙 Heard you in ${talking.length} clip${talking.length > 1 ? "s" : ""} (${sentences} sentences). Kept whole sentences in filming order, cut pauses, ums and restarts${extra ? ", plus " + extra : ""}. Want it in the best order? Ask Claude below ↓` : "";
 }
 
 // ---------------- loading ----------------
@@ -181,9 +207,11 @@ function transcribePCM(pcm, onStatus) {
   });
 }
 
-async function understand() {
+async function understand(auto = false) {
   const btn = $("flowBtn");
+  if (btn.disabled) return;   // already listening
   btn.disabled = true;
+  let needsTap = false;
   const status = (t) => ($("flowStatus").textContent = t);
   let wake = null; try { wake = await navigator.wakeLock?.request("screen"); } catch {}
   try {
@@ -200,6 +228,7 @@ async function understand() {
         try {
           analysis = await analyseAudio(new File([m.blob], m.meta.name, { type: m.blob.type }));
         } catch {
+          if (auto) { needsTap = true; status("Tap 🎙 below so I can listen to these clips (iPhone videos need one tap to scan their sound)."); return; }
           // iPhone .MOV: play it silently once and record the sound
           const v = pool[0];
           v.dataset.url = m.url; v.src = m.url;
@@ -225,7 +254,7 @@ async function understand() {
     status("Couldn't listen to the clips: " + (e.message || e));
   } finally {
     btn.disabled = false;
-    btn.textContent = "🎙 Listen again";
+    if (!needsTap) btn.textContent = "🎙 Listen again";
     try { await wake?.release(); } catch {}
   }
 }
@@ -338,16 +367,22 @@ async function unlock() {
   for (const v of pool) { try { if (!v.src && first) { v.src = first.url; v.dataset.url = first.url; } await v.play(); v.pause(); } catch {} }
 }
 
+// Each clip is cued a little BEFORE its in-point, so it can start playing (silent, unseen) just
+// before the cut and is already moving when it appears: seamless cuts, no hiccup.
+const PREROLL = 0.3;
+const seekAt = new Map();
 function prepare(i) {
   const c = P.clips[i];
   if (!c || c.kind !== "video") return Promise.resolve();
   const v = elOf(i);
   const url = media.get(c.mediaId)?.url;
+  const target = i === 0 ? c.inT : Math.max(0, c.inT - PREROLL);
+  seekAt.set(i, target);
   return new Promise((res) => {
     const seek = () => {
       const done = () => { v.removeEventListener("seeked", done); res(); };
       v.addEventListener("seeked", done);
-      v.currentTime = c.inT;
+      v.currentTime = target;
       setTimeout(res, 2500);
     };
     if (v.dataset.url !== url) {
@@ -419,7 +454,7 @@ async function run(ctx, cw, ch, { recording = false, onProgress } = {}) {
   monitor.gain.value = recording ? 0 : 1;
   const token = {}; running = token;
   await Promise.all([prepare(0), prepare(1), prepare(2)]);
-  const started = new Set(), ended = new Set();
+  const started = new Set(), ended = new Set(), rolling = new Set();
   let musicNode = null;
   if (music) {
     musicNode = actx.createBufferSource(); musicNode.buffer = music.buffer;
@@ -445,12 +480,15 @@ async function run(ctx, cw, ch, { recording = false, onProgress } = {}) {
       lastT = t;
       P.clips.forEach((c, i) => {
         const s = tm.starts[i], e = s + c.len;
-        if (t >= s && !started.has(i)) { started.add(i); if (c.kind === "video") elOf(i).play().catch(() => {}); }
+        const lead = c.kind === "video" ? Math.max(0, c.inT - (seekAt.get(i) ?? c.inT)) : 0;
+        if (c.kind === "video" && t >= s - lead && !rolling.has(i) && !ended.has(i)) { rolling.add(i); elOf(i).play().catch(() => {}); }
+        if (t >= s && !started.has(i)) { started.add(i); if (c.kind === "video" && !rolling.has(i)) { rolling.add(i); elOf(i).play().catch(() => {}); } }
         if (t >= e && !ended.has(i)) {
           ended.add(i);
           if (c.kind === "video") { elOf(i).pause(); gains[i % pool.length].gain.value = 0; }
           prepare(i + pool.length);
         }
+        if (c.kind === "video" && rolling.has(i) && !started.has(i)) gains[i % pool.length].gain.value = 0;   // pre-roll: silent
         if (c.kind === "video" && started.has(i) && !ended.has(i)) {
           // tiny fades (30ms) at every cut = no clicks or pops; longer fades for dissolves
           const fi = Math.max(0.03, c.xfIn || 0), fo = Math.max(0.03, P.clips[i + 1]?.xfIn || 0);
@@ -571,8 +609,10 @@ function markChips() {
   document.querySelectorAll("[data-pace]").forEach((b) => b.classList.toggle("on", b.dataset.pace === P.pace));
   document.querySelectorAll("[data-tr]").forEach((b) => b.classList.toggle("on", b.dataset.tr === P.transition));
   $("capToggle").checked = P.captions;
+  $("punchToggle").checked = !!P.punch;
 }
 $("capToggle").onchange = (e) => { P.captions = e.target.checked; refresh(); };
+$("punchToggle").onchange = (e) => { remember(); P.punch = e.target.checked; autoEdit(); refresh(); };
 $("titleIn").oninput = (e) => { P.title = e.target.value; renderTimeline(); drawStill(); autosave(); };
 $("goalIn").oninput = (e) => { P.goal = e.target.value; autosave(); };
 $("clipVol").oninput = (e) => { P.clipVol = +e.target.value; autosave(); };
@@ -751,6 +791,7 @@ $("saveBtn").onclick = async () => { try { await navigator.share({ files: [lastF
   $("flowStatus").textContent = !hasVideo ? "Only photos, so no speech to listen to." : known ? speechSummary() || "These clips have no talking, so they're edited as b-roll."
     : "Talking in these clips? Tap below so the edit follows what you say: whole sentences, in order, with pauses, ums and restarts cut.";
   if (known) { $("flowBtn").textContent = "🎙 Listen again"; }
+  else if (hasVideo) setTimeout(() => understand(true), 300);   // start listening straight away
   $("storyBox").hidden = !P.sources.some(isSpeech);
   $("goalIn").value = P.goal || "";
   markChips();
