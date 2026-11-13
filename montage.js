@@ -1,6 +1,7 @@
 // Multi-clip editor: several clips/photos -> one smooth vertical video that makes sense.
 // - Listens to talking clips (speech-to-text on the phone) and cuts on whole sentences
-// - Removes pauses, ums, restarts and repeated lines; jump cuts get an alternating punch-in
+// - Removes ums, restarts and repeated lines; keeps natural little pauses (fewer cuts)
+// - Smooth jump cuts: lines you up across each cut, then glides back to normal framing
 // - Playback follows the video's own clock (no freezes/jolts), tiny audio fades at every cut
 // - Captions across all clips, series templates, music, export
 // - "Ask Claude to edit the story": Claude picks the best sentences in the order that makes sense
@@ -26,7 +27,7 @@ const P = {
   sources: [],           // media ids in the order you picked them
   clips: [],             // timeline items: {mediaId, kind, duration, inT, len, muted, xfIn, zoom, speech}
   seriesId: null, title: "", sub: "", ep: { n: 1, date: new Date().toISOString().slice(0, 10), word: "", place: "" },
-  pace: "smooth", transition: "cut", punch: false, clipVol: 1, musicVol: 0.6, captions: true, goal: "",
+  pace: "smooth", transition: "cut", punch: false, match: true, clipVol: 1, musicVol: 0.6, captions: true, goal: "",
 };
 const media = new Map();        // mediaId -> {meta, url, thumbUrl, bmp}
 const transcripts = new Map();  // mediaId -> {words, sentences}
@@ -35,7 +36,7 @@ let groups = [];
 let selected = 0;
 const undoStack = [], redoStack = [];
 
-const snapshot = () => JSON.stringify({ sources: P.sources, clips: P.clips, title: P.title, pace: P.pace, transition: P.transition, punch: P.punch,
+const snapshot = () => JSON.stringify({ sources: P.sources, clips: P.clips, title: P.title, pace: P.pace, transition: P.transition, punch: P.punch, match: P.match,
   clipVol: P.clipVol, musicVol: P.musicVol, captions: P.captions, goal: P.goal });
 function remember() { undoStack.push(snapshot()); if (undoStack.length > 60) undoStack.shift(); redoStack.length = 0; updateUndo(); }
 function restore(s) { Object.assign(P, JSON.parse(s)); selected = Math.max(0, Math.min(selected, P.clips.length - 1)); $("titleIn").value = P.title; refresh(); }
@@ -88,7 +89,7 @@ function speechSegments(id, range = null, exclude = []) {
   const segs = [];
   let cur = null;
   for (const w of kept) {
-    if (cur && w.start - cur.lastEnd <= 0.5) { cur.lastEnd = w.end; cur.n++; continue; }
+    if (cur && w.start - cur.lastEnd <= 0.8) { cur.lastEnd = w.end; cur.n++; continue; }
     if (cur) segs.push(cur);
     cur = { first: w.start, lastEnd: w.end, n: 1 };
   }
@@ -394,6 +395,121 @@ function prepare(i) {
   });
 }
 
+// ---------------- smooth jump cuts ("match my position") ----------------
+// At every join between two talking shots, compare the last frame of the outgoing shot with the
+// first frame of the incoming one, and find the shift + size that lines you up. The incoming shot
+// starts lined up with where you just were, then glides gently back to its own framing, so
+// your face doesn't jump across the screen.
+const BASE_ZOOM = 1.1;      // tiny crop on talking shots gives room to line them up
+const GLIDE = 0.8;          // seconds to glide back to normal framing
+const AW = 54, AH = 96;     // tiny frames used for matching
+const alignCache = new Map();
+let probe = null;
+function probeEl() {
+  if (probe) return probe;
+  probe = document.createElement("video");
+  probe.muted = true; probe.playsInline = true; probe.preload = "auto"; probe.className = "hidden-video";
+  document.body.appendChild(probe);
+  return probe;
+}
+async function grabFrame(mediaId, time) {
+  const v = probeEl(), url = media.get(mediaId)?.url;
+  if (v.dataset.url !== url) {
+    v.dataset.url = url; v.src = url;
+    await new Promise((r) => { v.onloadeddata = r; v.load(); setTimeout(r, 4000); });
+    try { await v.play(); v.pause(); } catch {}
+  }
+  await new Promise((r) => { v.onseeked = r; v.currentTime = Math.max(0, time); setTimeout(r, 2000); });
+  const c = document.createElement("canvas"); c.width = AW; c.height = AH;
+  const x = c.getContext("2d", { willReadFrequently: true });
+  drawCover(x, v, v.videoWidth, v.videoHeight, BASE_ZOOM, AW, AH);
+  const d = x.getImageData(0, 0, AW, AH).data, g = new Float32Array(AW * AH);
+  for (let i = 0; i < g.length; i++) g[i] = 0.3 * d[i * 4] + 0.59 * d[i * 4 + 1] + 0.11 * d[i * 4 + 2];
+  // edges only (so a change in light doesn't confuse the match)
+  const e = new Float32Array(AW * AH);
+  for (let y = 1; y < AH - 1; y++) for (let x2 = 1; x2 < AW - 1; x2++) {
+    const i = y * AW + x2;
+    e[i] = Math.abs(g[i + 1] - g[i - 1]) + Math.abs(g[i + AW] - g[i - AW]);
+  }
+  return e;
+}
+// finds (s, dx, dy): drawing frame B scaled by s about the centre and shifted by (dx, dy) (fractions of the frame) looks like A
+function matchFrames(A, B) {
+  const sample = (img, x, y) => {
+    const xi = x | 0, yi = y | 0;
+    if (xi < 0 || yi < 0 || xi >= AW - 1 || yi >= AH - 1) return -1;
+    return img[yi * AW + xi];
+  };
+  const cost = (s, dx, dy) => {
+    let sum = 0, n = 0;
+    for (let y = AH * 0.12; y < AH * 0.8; y += 1) for (let x = AW * 0.15; x < AW * 0.85; x += 1) {
+      // where in B does this output pixel come from?
+      const bx = (x - AW / 2 - dx) / s + AW / 2, by = (y - AH / 2 - dy) / s + AH / 2;
+      const b = sample(B, bx, by); if (b < 0) continue;
+      const w = y < AH * 0.55 ? 1.5 : 1;   // face / upper body matters most
+      sum += w * Math.abs(A[(y | 0) * AW + (x | 0)] - b); n += w;
+    }
+    return n ? sum / n : 1e9;
+  };
+  let best = { s: 1, dx: 0, dy: 0, c: cost(1, 0, 0) };
+  const none = best.c;
+  for (const s of [0.9, 0.94, 0.97, 1, 1.03, 1.06, 1.1])
+    for (let dy = -10; dy <= 10; dy += 2) for (let dx = -8; dx <= 8; dx += 2) {
+      const c = cost(s, dx, dy); if (c < best.c) best = { s, dx, dy, c };
+    }
+  for (let dy = best.dy - 1; dy <= best.dy + 1; dy++) for (let dx = best.dx - 1; dx <= best.dx + 1; dx++) {
+    const c = cost(best.s, dx, dy); if (c < best.c) best = { ...best, dx, dy, c };
+  }
+  // only use it if it's a clearly better match
+  if (best.c > none * 0.93) return null;
+  return { s: best.s, dx: best.dx / AW, dy: best.dy / AH };
+}
+async function computeAlignments(onStatus) {
+  if (P.match === false) return;
+  const joins = [];
+  P.clips.forEach((c, i) => {
+    const prev = P.clips[i - 1];
+    if (i > 0 && c.speech && prev?.speech && c.kind === "video" && prev.kind === "video" && !c.xfIn) joins.push(i);
+    else delete c.align;
+  });
+  for (let k = 0; k < joins.length; k++) {
+    const i = joins[k], c = P.clips[i], prev = P.clips[i - 1];
+    const key = `${prev.mediaId}@${(prev.inT + prev.len).toFixed(2)}|${c.mediaId}@${c.inT.toFixed(2)}`;
+    if (!alignCache.has(key)) {
+      onStatus?.(`Smoothing jump cuts ${k + 1}/${joins.length}…`);
+      try {
+        const A = await grabFrame(prev.mediaId, prev.inT + prev.len - 0.05);
+        const B = await grabFrame(c.mediaId, c.inT + 0.04);
+        alignCache.set(key, matchFrames(A, B));
+      } catch { alignCache.set(key, null); }
+    }
+    const a = alignCache.get(key);
+    if (a) c.align = a; else delete c.align;
+  }
+}
+// framing for a talking shot at time t: lined up at the cut, gliding back to normal
+function framing(c, i, t, s) {
+  if (!c.align || P.match === false) return null;
+  const g = Math.min(GLIDE, c.len * 0.8), u = Math.min(1, Math.max(0, (t - s) / g));
+  const k = 1 - u * u * (3 - 2 * u);   // smooth ease
+  if (k <= 0) return null;
+  // where your face/upper body was in the last shot, and where it is in this one (relative to the centre)
+  const { s: ms, dx: mdx, dy: mdy } = c.align;
+  const aX = 0, aY = -0.12;
+  const bX = (aX - mdx) / ms, bY = (aY - mdy) / ms;
+  // line them up; if that needs more room than the crop allows, zoom in a touch (position matters more than size)
+  let sc1 = ms, d = { x: 0, y: 0 };
+  for (let it = 0; it < 4; it++) {
+    d = { x: aX - bX * sc1, y: aY - bY * sc1 };
+    sc1 = Math.min(1.4, Math.max(ms, (1 + 2 * Math.max(Math.abs(d.x), Math.abs(d.y))) / BASE_ZOOM, 1 / BASE_ZOOM));
+  }
+  d = { x: aX - bX * sc1, y: aY - bY * sc1 };
+  const sc = Math.max(1 / BASE_ZOOM, 1 + (sc1 - 1) * k);
+  const room = (BASE_ZOOM * sc - 1) / 2;
+  const clamp = (v) => Math.max(-room, Math.min(room, v));
+  return { sc, dx: clamp(d.x * k), dy: clamp(d.y * k) };
+}
+
 function drawCover(ctx, src, sw, sh, zoom, cw, ch, focusY = 0.45) {
   if (!sw || !sh) return;
   const scale = Math.max(cw / sw, ch / sh) * zoom;
@@ -421,7 +537,16 @@ function drawAt(ctx, cw, ch, t, tm) {
     const push = c.speech ? 0 : c.kind === "photo" ? 0.08 * prog : 0.04 * prog;
     const zoom = (c.zoom || 1) + push;
     if (c.kind === "photo") { const b = media.get(c.mediaId)?.bmp; if (b) drawCover(ctx, b, b.width, b.height, 1.02 + push, cw, ch); }
-    else { const v = elOf(i); drawCover(ctx, v, v.videoWidth, v.videoHeight, zoom, cw, ch, c.zoom > 1 ? 0.38 : 0.45); }
+    else {
+      const v = elOf(i);
+      const f = c.speech && P.match !== false ? framing(c, i, t, s) : null;
+      if (f) {
+        ctx.save();
+        ctx.translate(cw / 2 + f.dx * cw, ch / 2 + f.dy * ch); ctx.scale(f.sc, f.sc); ctx.translate(-cw / 2, -ch / 2);
+        drawCover(ctx, v, v.videoWidth, v.videoHeight, zoom * BASE_ZOOM, cw, ch, 0.5);
+        ctx.restore();
+      } else drawCover(ctx, v, v.videoWidth, v.videoHeight, c.speech && P.match !== false ? zoom * BASE_ZOOM : zoom, cw, ch, c.speech && P.match !== false ? 0.5 : c.zoom > 1 ? 0.38 : 0.45);
+    }
   });
   ctx.globalAlpha = 1;
   if (P.captions && groups.length && capLook) drawCaptions(ctx, cw, ch, { captionsOn: true, plan: { groups }, look: capLook, palette }, t);
@@ -529,6 +654,7 @@ async function drawStill() {
 $("playBtn").onclick = async () => {
   if (running) { stop(); $("playBtn").textContent = "▶"; return; }
   await unlock();
+  await computeAlignments((t) => ($("timeLabel").textContent = t));
   $("playBtn").textContent = "❚❚";
   await run(pctx, pv.width, pv.height, { onProgress: (p, t) => { $("timeLabel").textContent = `${fmt(t)} / ${fmt(timing().total)}`; } });
   $("playBtn").textContent = "▶";
@@ -610,8 +736,10 @@ function markChips() {
   document.querySelectorAll("[data-tr]").forEach((b) => b.classList.toggle("on", b.dataset.tr === P.transition));
   $("capToggle").checked = P.captions;
   $("punchToggle").checked = !!P.punch;
+  $("matchToggle").checked = P.match !== false;
 }
 $("capToggle").onchange = (e) => { P.captions = e.target.checked; refresh(); };
+$("matchToggle").onchange = (e) => { remember(); P.match = e.target.checked; refresh(); };
 $("punchToggle").onchange = (e) => { remember(); P.punch = e.target.checked; autoEdit(); refresh(); };
 $("titleIn").oninput = (e) => { P.title = e.target.value; renderTimeline(); drawStill(); autosave(); };
 $("goalIn").oninput = (e) => { P.goal = e.target.value; autosave(); };
@@ -727,6 +855,7 @@ $("exportBtn").onclick = async () => {
   await unlock();
   $("exportBox").hidden = false; $("saveRow").hidden = true;
   $("exportBtn").disabled = true;
+  await computeAlignments((t) => ($("exportMsg").textContent = t));
   $("exportMsg").textContent = "Making your video… keep this screen open (it plays through once).";
   let wake = null; try { wake = await navigator.wakeLock?.request("screen"); } catch {}
   try {
