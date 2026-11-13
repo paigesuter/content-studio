@@ -5,6 +5,7 @@ const dbSet = (k, v) => db.setValue(k, v);
 import { loadBrand, updateBrand, history, revert, addFeedback, loadKit, saveKit, addCustomFont,
   registerCustomFonts, removeCustomFont, exportBackup, importBackup, resetBrand } from "./brand.js";
 import { PALETTES, PAIRINGS, googleFontsHref, activePalette } from "./kit.js";
+import { listSeries, saveSeries, deleteSeries, newSeries, fillTemplate } from "./series.js";
 import { importFiles, listMedia, getBlob, removeMedia, updateMedia, listFolders, addFolder, removeFolder,
   fmtDuration, fmtSize } from "./library.js";
 
@@ -53,7 +54,7 @@ async function refreshMedia() { S.media = await listMedia(); S.folders = await l
 
 // ---------- navigation ----------
 const NAV = [
-  ["home", "Dashboard", "🏠"], ["footage", "My Footage", "🎞️"], ["create", "Create / Edit", "✂️"], ["brain", "Brand Brain", "💗"],
+  ["home", "Dashboard", "🏠"], ["series", "My Series", "🌸"], ["footage", "My Footage", "🎞️"], ["create", "Create / Edit", "✂️"], ["brain", "Brand Brain", "💗"],
   ["hooks", "Hook Bank", "💬"], ["inspo", "Inspiration", "✨"], ["calendar", "Content Calendar", "🗓️"], ["kit", "Brand Kit & Settings", "🎀"],
 ];
 function renderNav(page) {
@@ -241,6 +242,7 @@ VIEWS.home = async () => {
           el("h2", {}, "Quick actions"),
           el("div", { class: "quick" },
             el("button", { class: "qa", onclick: () => pickUpload() }, el("i", {}, "📤"), "Upload footage"),
+            el("a", { class: "qa", href: "#series" }, el("i", {}, "🌸"), "New episode"),
             el("a", { class: "qa", href: "#create" }, el("i", {}, "🎬"), "Make a reel"),
             el("a", { class: "qa", href: "#brain" }, el("i", {}, "💗"), "Teach the studio"),
             el("a", { class: "qa", href: "#kit" }, el("i", {}, "🎀"), "Brand kit"))),
@@ -252,6 +254,132 @@ VIEWS.home = async () => {
           el("p", { class: "affirm-s" }, "Talking to the girl thinking: “", S.brand.audience.innerThought, "”")))),
   ];
 };
+
+
+// ============================================================ MY SERIES
+let seriesDraft = null;
+
+function seriesFrame(sr, bgUrl, vals = {}) {
+  const pairing = PAIRINGS.find((p) => p.id === sr.pairing) || PAIRINGS[0];
+  const pal = (PALETTES.find((p) => p.id === sr.palette) || PALETTES[0]).colors;
+  const f = (x, extra = {}) => ({ fontFamily: `"${x.family}"`, fontWeight: x.weight || 400, fontStyle: x.italic ? "italic" : "normal", ...extra });
+  const top = { top: "13%", middle: "38%", bottom: "64%" }[sr.position] || "13%";
+  const sample = { n: sr.next || 1, word: vals.word ?? "strong", place: vals.place ?? "uluwatu" };
+  const title = fillTemplate(sr.title, sr, sample);
+  const sub = fillTemplate(sr.subtitle, sr, sample);
+  return el("div", { class: "frame916 series-frame", style: bgUrl ? { backgroundImage: `url(${bgUrl})` } : {} },
+    el("div", { class: "shade" }),
+    el("div", { class: "sf-text", style: { top } },
+      el("div", { class: "sf-title", style: f(pairing.title, { color: pal.text }) }, title),
+      sub ? el("span", { class: "sf-sub", style: f(pairing.primary, { background: pal.pink, color: pal.deep }) }, sub) : null),
+    sr.captions ? el("div", { class: "t-cap", style: f(pairing.primary, { color: pal.text }) }, "honestly this ", el("b", { style: { color: pal.butter } }, "changed"), " everything") : null);
+}
+
+function seriesBg(sr) {
+  const inFolder = sr.folder ? S.media.find((m) => m.thumb && m.folders?.includes(sr.folder)) : null;
+  const lastEp = sr.episodes?.length ? S.media.find((m) => m.id === sr.episodes[sr.episodes.length - 1].clip) : null;
+  const m = lastEp || inFolder || S.media.find((x) => x.thumb && x.orientation === "portrait");
+  return m ? thumbUrl(m) : null;
+}
+
+function pickEpisodeClip(sr) {
+  const videos = S.media.filter((m) => m.kind === "video");
+  const inFolder = sr.folder ? videos.filter((m) => m.folders?.includes(sr.folder)) : [];
+  const list = inFolder.length ? inFolder : videos;
+  openSheet(
+    el("div", { class: "card-head" }, el("h2", {}, `${sr.emoji} New episode`), el("button", { class: "btn-ghost", onclick: closeSheet }, "Close")),
+    el("p", { class: "small muted" }, `Pick the clip for ${sr.name} #${sr.next || 1}. Your saved template is applied automatically.`),
+    list.length ? el("div", { class: "media-grid" }, list.map((m) => tile(m, () => { location.href = `edit.html?clip=${m.id}&series=${sr.id}`; })))
+      : el("p", { class: "muted" }, "No videos yet."),
+    el("div", { class: "row", style: { marginTop: "14px" } },
+      el("button", { class: "btn-pink", onclick: () => { closeSheet(); pickUpload(sr.folder); } }, "＋ Upload new clips"),
+      inFolder.length && inFolder.length !== videos.length ? el("button", { onclick: () => { sr = { ...sr, folder: null }; pickEpisodeClip(sr); } }, "Show all videos") : null));
+}
+
+VIEWS.series = async () => {
+  const list = await listSeries();
+  if (seriesDraft) return seriesEditor(seriesDraft);
+  return [
+    el("div", { class: "page-head row" }, el("div", {}, el("h1", {}, "My ", el("em", {}, "Series")),
+      el("p", {}, "Each series remembers its own fonts, colours, text and pacing. New episode = pick your clip, done.")),
+      el("span", { class: "spacer" }),
+      el("button", { class: "btn-pink", onclick: () => { seriesDraft = newSeries(); render(); } }, "＋ New series")),
+    el("div", { class: "series-grid" }, list.map((sr) => {
+      const pal = PALETTES.find((p) => p.id === sr.palette) || PALETTES[0];
+      const pairing = PAIRINGS.find((p) => p.id === sr.pairing) || PAIRINGS[0];
+      const count = sr.episodes?.length || 0;
+      const progress = sr.total ? Math.min(100, Math.round((count / sr.total) * 100)) : null;
+      return el("div", { class: "card series-card" },
+        seriesFrame(sr, seriesBg(sr)),
+        el("div", { class: "series-info" },
+          el("h2", {}, `${sr.emoji} ${sr.name}`),
+          el("p", { class: "small muted" }, sr.about),
+          el("div", { class: "row small" },
+            el("span", { class: "tag pink" }, sr.total ? `${count}/${sr.total} done` : `${count} episode${count === 1 ? "" : "s"}`),
+            el("span", { class: "tag" }, `next: #${sr.next || 1}`)),
+          progress != null ? el("div", { class: "progress" }, el("div", { style: { width: `${progress}%` } })) : null,
+          swatchRow(pal, { labels: false }),
+          el("p", { class: "small", style: { margin: "8px 0 12px" } }, el("b", {}, pairing.name), ` · ${pairing.title.family} + ${pairing.primary.family}`),
+          el("div", { class: "row" },
+            el("button", { class: "btn-pink", onclick: () => pickEpisodeClip(sr) }, "＋ New episode"),
+            el("button", { onclick: () => { seriesDraft = JSON.parse(JSON.stringify(sr)); render(); } }, "Edit template")),
+          count ? el("details", { style: { marginTop: "12px" } }, el("summary", { class: "small" }, "Episode log"),
+            [...sr.episodes].reverse().map((e) => el("div", { class: "history-item small" }, el("b", {}, `#${e.n}`), el("span", {}, e.title || ""), el("span", { class: "spacer" }), el("span", { class: "muted" }, new Date(e.at).toLocaleDateString())))) : null));
+    })),
+  ];
+};
+
+function seriesEditor(d) {
+  const preview = el("div");
+  const refresh = () => preview.replaceChildren(seriesFrame(d, seriesBg(d)));
+  refresh();
+  const input = (key, opts = {}) => {
+    const n = el("input", { type: opts.type || "text", value: d[key] ?? "", placeholder: opts.ph || "" });
+    n.oninput = () => { d[key] = opts.type === "number" ? (n.value ? parseInt(n.value, 10) : null) : n.value; refresh(); };
+    return n;
+  };
+  const select = (key, options) => {
+    const n = el("select", {}, options.map(([v, t]) => el("option", { value: v, selected: String(d[key]) === String(v) }, t)));
+    n.onchange = () => { d[key] = n.value === "true" ? true : n.value === "false" ? false : n.value; refresh(); };
+    return n;
+  };
+  const choice = (key, items, label) => el("div", { class: "chips scroll" }, items.map((it) => el("button", {
+    class: "chip" + (d[key] === it.id ? " on" : ""), onclick: (e) => { d[key] = it.id; e.currentTarget.parentNode.querySelectorAll(".chip").forEach((c) => c.classList.remove("on")); e.currentTarget.classList.add("on"); refresh(); } }, label(it))));
+  return [
+    el("div", { class: "page-head row" }, el("div", {}, el("h1", {}, d.emoji, " ", el("em", {}, d.name || "Series")), el("p", {}, "Set it once. Every episode uses this template.")),
+      el("span", { class: "spacer" }),
+      el("button", { onclick: () => { seriesDraft = null; render(); } }, "Cancel"),
+      el("button", { class: "btn-pink", onclick: async () => { await saveSeries(d); seriesDraft = null; toast("Series saved ✓"); render(); } }, "Save series")),
+    el("div", { class: "series-edit" },
+      el("div", { class: "series-preview" }, preview, el("p", { class: "small muted", style: { textAlign: "center" } }, "Live preview with example details")),
+      el("div", {},
+        el("div", { class: "card" }, el("h2", {}, "The basics"),
+          el("div", { class: "grid", style: { gridTemplateColumns: "80px 1fr" } }, el("label", { class: "field" }, "Emoji", input("emoji")), el("label", { class: "field" }, "Series name", input("name"))),
+          el("label", { class: "field" }, "What it's about", input("about")),
+          el("label", { class: "field" }, "Content pillar", select("pillar", S.brand.pillars.map((p) => [p.id, p.name]))),
+          el("label", { class: "field" }, "Footage folder (clips for this series)", select("folder", [["", "Any folder"], ...S.folders.map((f) => [f.id, f.name])]))),
+        el("div", { class: "card" }, el("h2", {}, "Text on screen"),
+          el("p", { class: "small muted" }, "Use {n} for the episode number, {total}, {date}, {word} for a one-word feeling, {place}."),
+          el("label", { class: "field" }, "Title", input("title", { ph: "e.g. pilates class {n}/{total}" })),
+          el("label", { class: "field" }, "Little label underneath (optional)", input("subtitle", { ph: "e.g. {date} · {word}" })),
+          el("div", { class: "grid cols-3" },
+            el("label", { class: "field" }, "Position", select("position", [["top", "Top"], ["middle", "Middle"], ["bottom", "Bottom"]])),
+            el("label", { class: "field" }, "Show title", select("showTitle", [["start", "First 3 seconds"], ["whole", "Whole video"]])),
+            el("label", { class: "field" }, "Captions", select("captions", [[true, "On"], [false, "Off"]])))),
+        el("div", { class: "card" }, el("h2", {}, "Colours"), choice("palette", PALETTES, (p) => p.name)),
+        el("div", { class: "card" }, el("h2", {}, "Fonts"), choice("pairing", PAIRINGS, (p) => p.name)),
+        el("div", { class: "card" }, el("h2", {}, "Editing"),
+          el("div", { class: "grid cols-3" },
+            el("label", { class: "field" }, "Zoom-ins", select("zoom", [["off", "None"], ["low", "Now and then"], ["medium", "Regularly"], ["high", "Lots"]])),
+            el("label", { class: "field" }, "Cut pauses longer than (s)", input("pause", { type: "number" })),
+            el("label", { class: "field" }, "Total episodes (blank = ongoing)", input("total", { type: "number" })),
+            el("label", { class: "field" }, "Next episode number", input("next", { type: "number" })))),
+        el("button", { class: "btn-ghost btn-danger", onclick: async () => {
+          if (!confirm(`Delete the ${d.name} series template? Your footage and exported videos aren't affected.`)) return;
+          await deleteSeries(d.id); seriesDraft = null; render();
+        } }, "Delete this series"))),
+  ];
+}
 
 // ============================================================ MY FOOTAGE
 function filteredMedia() {

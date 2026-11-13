@@ -103,11 +103,12 @@ function drawHook(ctx, W, H, st, outT) {
   const text = (st.hook || "").trim();
   if (!text) return;
   const style = st.look.hook.style;
-  if (style !== "story" && outT > HOOK_SECONDS) return;
+  const whole = style === "story" || (style === "series" && st.look.hook.whole);
+  if (!whole && outT > HOOK_SECONDS) return;
   const k = W / 1080;
   const p = st.palette;
   const words = text.split(/\s+/).map((t) => ({ text: t }));
-  const alpha = style === "story" ? 1 : Math.min(1, outT / 0.2, (HOOK_SECONDS - outT) / 0.3 + 0.0001);
+  const alpha = whole ? Math.min(1, outT / 0.25 + 0.0001) : Math.min(1, outT / 0.2, (HOOK_SECONDS - outT) / 0.3 + 0.0001);
   ctx.save();
   ctx.globalAlpha = Math.max(0, alpha);
   ctx.textAlign = "center";
@@ -144,6 +145,14 @@ function drawHook(ctx, W, H, st, outT) {
     const cut = Math.max(1, Math.round(words.length * 0.45));
     block(`italic 400 ${62 * k}px 'Playfair Display'`, p.accent, 72 * k, words.slice(0, cut), { shadow: true });
     block(`400 ${86 * k}px 'DM Serif Display'`, p.light, 92 * k, words.slice(cut), { shadow: true });
+  } else if (style === "series") {
+    const f = st.look.hook.font, sf = st.look.hook.subFont;
+    block(`${f.italic ? "italic " : ""}${f.weight || 400} ${78 * k}px "${f.family}"`, p.light, 86 * k, words, { shadow: true, maxW: 0.86 });
+    const sub = (st.sub || "").trim();
+    if (sub) {
+      y += 10 * k;
+      block(`${sf.italic ? "italic " : ""}${sf.weight || 600} ${38 * k}px "${sf.family}"`, p.ink, 62 * k, sub.split(/\s+/).map((t) => ({ text: t })), { label: p.accent, maxW: 0.8 });
+    }
   } else if (style === "custom") {
     const f = st.look.hook.font;
     block(`${f.italic ? "italic " : ""}${f.weight || 400} ${80 * k}px "${f.family}"`, p.light, 88 * k,

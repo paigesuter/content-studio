@@ -232,3 +232,26 @@ h2 { font-size: 19px; }
 .brandmark { padding: 0; }
 .brandmark .script { font-family: "Pinyon Script", cursive; font-size: 34px; color: #D97A99; line-height: 1; }
 .brandmark .caps { font-size: 10px; letter-spacing: .3em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+
+/* series */
+.series-grid { display: grid; gap: 18px; grid-template-columns: repeat(auto-fill, minmax(460px, 1fr)); }
+.series-card { display: grid; grid-template-columns: 170px 1fr; gap: 18px; align-items: start; }
+.series-card .frame916 { width: 170px; }
+.series-info h2 { margin-bottom: 4px; }
+.series-frame .sf-text { position: absolute; left: 7%; right: 7%; text-align: center; display: grid; justify-items: center; gap: 8px; }
+.series-frame .sf-title { font-size: 21px; line-height: 1.1; text-shadow: 0 2px 10px rgba(0,0,0,.3); }
+.series-frame .sf-sub { font-size: 11px; padding: 4px 10px; border-radius: 8px; }
+.series-edit { display: grid; grid-template-columns: 300px 1fr; gap: 22px; align-items: start; }
+.series-preview { position: sticky; top: 110px; }
+.series-preview .frame916 { width: 100%; }
+.series-preview .sf-title { font-size: 34px; }
+.series-preview .sf-sub { font-size: 16px; padding: 6px 14px; }
+@media (max-width: 900px) {
+  .series-grid { grid-template-columns: 1fr; }
+  .series-card { grid-template-columns: 120px 1fr; gap: 12px; }
+  .series-card .frame916 { width: 120px; }
+  .series-card .sf-title { font-size: 15px; }
+  .series-edit { grid-template-columns: 1fr; }
+  .series-preview { position: static; max-width: 240px; margin: 0 auto; }
+  .series-preview .sf-title { font-size: 26px; }
+}

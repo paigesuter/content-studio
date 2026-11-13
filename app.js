@@ -5,6 +5,8 @@ import { Player, drawFrame, exportVideo, audioGraph } from "./render.js";
 import { loadKit, registerCustomFonts } from "./brand.js";
 import { activeFonts, activePalette, googleFontsHref, loadFontsFor } from "./kit.js";
 import { getBlob, listMedia } from "./library.js";
+import { getSeries, fillTemplate, logEpisode, TEXT_POSITIONS } from "./series.js";
+import { PAIRINGS as KIT_PAIRINGS, PALETTES as KIT_PALETTES } from "./kit.js";
 
 const $ = (id) => document.getElementById(id);
 const TEST = new URLSearchParams(location.search).has("test");
@@ -172,7 +174,7 @@ function listen() {
 function gotWords(words) {
   state.words = words;
   rebuild();
-  if (!state.hook && state.plan.words.length) {
+  if (!series && !state.hook && state.plan.words.length) {
     // Suggest your first (clean, kept) sentence as the hook
     const first = [];
     for (const w of state.plan.words) { first.push(w.text); if (/[.!?]$/.test(w.text) || first.length >= 9) break; }
@@ -226,6 +228,11 @@ $("exportBtn").onclick = async () => {
     $("saveBtn").hidden = !(navigator.canShare && navigator.canShare({ files: [lastFile] }));
     $("saveRow").hidden = false;
     $("exportMsg").textContent = `Done! ${(blob.size / 1e6).toFixed(1)} MB. Tap Save to Photos, then choose “Save Video”.`;
+    if (series) {
+      const clipId = new URLSearchParams(location.search).get("clip");
+      const updated = await logEpisode(series.id, { n: ep.n, date: ep.date, word: ep.word, place: ep.place, clip: clipId, title: state.hook });
+      if (updated) { $("exportMsg").textContent += ` Logged as ${series.name} #${ep.n} ✓`; series = updated; }
+    }
   } catch (e) {
     $("exportMsg").textContent = "Something went wrong making the video: " + e.message;
   } finally {
@@ -266,9 +273,65 @@ async function addBrandLook() {
   } catch (e) { console.warn("brand look unavailable", e); }
 }
 
+// ---------- series mode: the episode template is applied automatically ----------
+let series = null;
+const ep = { n: 1, date: new Date().toISOString().slice(0, 10), word: "", place: "" };
+
+async function applySeries(id) {
+  series = await getSeries(id);
+  if (!series) return;
+  const pairing = KIT_PAIRINGS.find((p) => p.id === series.pairing) || KIT_PAIRINGS[0];
+  const pal = (KIT_PALETTES.find((p) => p.id === series.palette) || KIT_PALETTES[0]).colors;
+  await loadFontsFor({ a: pairing.primary, b: pairing.title, c: pairing.accent });
+  const look = {
+    id: "series", name: `${series.emoji} ${series.name}`, blurb: "Your saved series template",
+    captions: { font: pairing.primary.family, weight: pairing.primary.weight || 600, size: 58, words: 4, upper: false,
+      y: series.position === "bottom" ? 0.62 : 0.76, color: "light", highlight: "accent2", stroke: null, strokeW: 0,
+      style: "highlight", shadow: true, pop: false, punct: true },
+    hook: { style: "series", y: TEXT_POSITIONS[series.position] ?? 0.16, font: pairing.title, subFont: pairing.primary, whole: series.showTitle === "whole" },
+    zoom: { frequency: series.zoom || "off", strength: 1.08 },
+    pacing: { pause: series.pause || 0.6, padding: 0.12 },
+  };
+  const palette = { id: "series", name: series.name, accent: pal.pink, accent2: pal.butter, ink: pal.deep, light: pal.text };
+  LOOKS.unshift(look);
+  PALETTES.unshift(palette);
+  state.look = look;
+  state.palette = palette;
+  state.captionsOn = !!series.captions;
+  $("optCaptions").checked = state.captionsOn;
+  ep.n = series.next || 1;
+  renderEpisodeBox();
+}
+
+function updateSeriesText() {
+  if (!series) return;
+  state.hook = fillTemplate(series.title, series, ep);
+  state.sub = fillTemplate(series.subtitle, series, ep);
+  $("hook").value = state.hook;
+}
+
+function renderEpisodeBox() {
+  const box = $("episodeBox");
+  box.hidden = false;
+  const field = (label, key, type = "text", ph = "") => {
+    const input = Object.assign(document.createElement("input"), { type, value: ep[key], placeholder: ph });
+    input.oninput = () => { ep[key] = type === "number" ? parseInt(input.value || "1", 10) : input.value; updateSeriesText(); };
+    const l = document.createElement("label"); l.append(label, input); return l;
+  };
+  const grid = document.createElement("div"); grid.className = "ep-grid";
+  grid.append(field(series.total ? `Episode (of ${series.total})` : "Episode", "n", "number"), field("Date", "date", "date"));
+  if (series.askWord || /\{word\}/.test(series.title + series.subtitle)) grid.append(field("Feeling (one word)", "word", "text", "e.g. strong"));
+  if (series.askPlace || /\{place\}/.test(series.title + series.subtitle)) grid.append(field("Place", "place", "text", "e.g. uluwatu"));
+  const h = document.createElement("h2"); h.textContent = `${series.emoji} ${series.name}`;
+  box.replaceChildren(h, grid);
+  updateSeriesText();
+}
+
 (async () => {
   document.head.append(Object.assign(document.createElement("link"), { rel: "stylesheet", href: googleFontsHref() }));
   await addBrandLook();
+  const seriesId = new URLSearchParams(location.search).get("series");
+  if (seriesId) await applySeries(seriesId);
   renderLooks();
   renderPalettes();
   Promise.all(FONT_LOADS.map((f) => document.fonts.load(f).catch(() => {}))).then(() => player.step());
