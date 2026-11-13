@@ -263,3 +263,6 @@ h2 { font-size: 19px; }
   .series-preview { position: static; max-width: 240px; margin: 0 auto; }
   .series-preview .sf-title { font-size: 26px; }
 }
+.tb-right { text-decoration: none; }
+.ig-arrow { color: #D97A99; }
+.ig-link { margin-left: auto; font-size: 13px; font-weight: 700; color: #D97A99; text-decoration: none; }
