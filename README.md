@@ -1,16 +1,28 @@
-# Content Studio (on-phone version)
+# Paige's Content Studio
 
-Edits reels **on your iPhone or iPad**, in Safari. No computer, no server, no cost.
+A personal content studio that runs in Safari on iPhone & iPad. Free, private, no server.
+Open it at **https://paigesuter.github.io/content-studio/** and add it to your Home Screen.
 
-- Pick a talking-to-camera clip from Photos
-- It cuts pauses, restarts, repeated lines and ums
-- Captions are made on your phone (free speech model, downloads once ~77 MB)
-- Swipe between looks (Bold yap, Highlight box, Soft serif, Storytime text, Clean minimal) and colour palettes
-- "Compare all" shows the same moment in every look
-- "Make my video", then "Save to Photos"
+## Sections
+| Section | Status |
+|---|---|
+| Home: upload, recent footage, brand at a glance | ✅ Phase 1 |
+| My Footage: library, folders, favourites, previews | ✅ Phase 1 |
+| Brand Brain: identity, audience, pillars, voice, feedback, history/undo, Ask Claude | ✅ Phase 1 |
+| Brand Kit & Settings: palettes, font pairings, your own fonts, approval, backup | ✅ Phase 1 |
+| Create / Edit: quick reel editor (one talking clip) with "My brand" look | ✅ (multi-clip timeline in Phase 3) |
+| Hook Bank, captions, content ideas, transcription intelligence | Phase 2 |
+| Timeline editor, presets, transitions, music, formats | Phase 3 |
+| Inspiration library, "Recreate this style" | Phase 4 |
+| Content calendar & drafts | Phase 5 |
 
-Your videos never leave your phone. This folder is just the app's code; it's published as a
-free website with GitHub Pages.
+## How it works
+- Everything (footage copies, brand brain, kit, projects) is stored **on your device** (IndexedDB). Originals in Photos are never touched.
+- Speech-to-text runs on the device (Whisper). Video export runs on the device (canvas + MediaRecorder, 1080×1920).
+- AI writing uses the free **Ask Claude** bridge: copy a prompt → paste into your Claude chat → paste the reply back.
+- This repo is public (free hosting), so it only contains public-facing brand info. Private notes live on your device.
 
-Files: `index.html` (screen), `app.js` (buttons & flow), `engine.js` (what to cut),
-`render.js` (drawing, preview, export), `looks.js` (styles & palettes), `listen-worker.js` (captions).
+## Files
+`index.html` + `studio.js` + `studio.css`: the studio · `edit.html` + `app.js` + `style.css`: quick reel editor ·
+`brand-seed.js`: starting Brand Brain · `kit.js`: palettes & fonts · `brand.js`: brand storage & history ·
+`library.js`: footage library · `db.js`: on-device storage · `engine.js`/`render.js`/`looks.js`/`listen-worker.js`: editing engine.

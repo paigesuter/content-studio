@@ -144,6 +144,10 @@ function drawHook(ctx, W, H, st, outT) {
     const cut = Math.max(1, Math.round(words.length * 0.45));
     block(`italic 400 ${62 * k}px 'Playfair Display'`, p.accent, 72 * k, words.slice(0, cut), { shadow: true });
     block(`400 ${86 * k}px 'DM Serif Display'`, p.light, 92 * k, words.slice(cut), { shadow: true });
+  } else if (style === "custom") {
+    const f = st.look.hook.font;
+    block(`${f.italic ? "italic " : ""}${f.weight || 400} ${80 * k}px "${f.family}"`, p.light, 88 * k,
+      words.map((w) => ({ text: w.text.toLowerCase() })), { shadow: true, maxW: 0.86 });
   } else if (style === "story") {
     block(`400 ${70 * k}px 'DM Serif Display'`, p.light, 74 * k, words.map((w) => ({ text: w.text.toLowerCase() })), { shadow: true, maxW: 0.86 });
   } else {

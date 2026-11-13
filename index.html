@@ -5,89 +5,30 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Studio">
-  <meta name="theme-color" content="#fbf7f2">
+  <meta name="theme-color" content="#FFFBF8">
   <link rel="apple-touch-icon" href="icon-180.png">
   <link rel="manifest" href="manifest.webmanifest">
-  <title>Content Studio</title>
+  <title>Paige's Content Studio</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;700&family=DM+Serif+Display&family=Inter:wght@600;800&family=Montserrat:wght@800;900&family=Playfair+Display:ital@1&family=Space+Mono&display=swap">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="studio.css">
 </head>
 <body>
-<header class="top">
-  <div class="logo">Content <span>Studio</span></div>
-  <button id="newClip" class="ghost" hidden>New clip</button>
-</header>
-
-<main>
-  <!-- 1. Start -->
-  <section id="start" class="start">
-    <h1>Turn a raw clip into a reel</h1>
-    <p class="muted">Pick a talking-to-camera clip. Your phone cuts the pauses and mistakes, adds captions
-      and zooms, and shows it in different looks. Everything stays on your phone.</p>
-    <label class="big-btn">
-      <input type="file" id="file" accept="video/*" hidden>
-      Choose a clip
-    </label>
-    <p class="small muted">Tip: 1080p clips are faster than 4K. The first time, the app downloads its speech
-      model (about 77&nbsp;MB) on Wi-Fi.</p>
-  </section>
-
-  <!-- 2. Studio -->
-  <section id="studio" class="studio" hidden>
-    <div class="stage">
-      <div class="frame">
-        <canvas id="preview" width="540" height="960"></canvas>
-        <button id="playBtn" class="play" aria-label="Play">▶</button>
-      </div>
-      <div id="status" class="status"></div>
-    </div>
-
-    <div class="panel">
-      <div class="row-head"><h2>Look</h2><button id="compareBtn" class="ghost">Compare all</button></div>
-      <div id="looks" class="chips"></div>
-      <p id="lookBlurb" class="small muted"></p>
-
-      <h2>Colours</h2>
-      <div id="palettes" class="swatches"></div>
-
-      <h2>Hook text</h2>
-      <input id="hook" type="text" maxlength="90" placeholder="e.g. 3 things I wish I knew before…">
-      <p class="small muted">Shows at the start of the video. Leave empty for none.</p>
-
-      <h2>Editing</h2>
-      <label class="toggle"><input type="checkbox" id="optCaptions" checked> Captions</label>
-      <label class="toggle"><input type="checkbox" id="optBloopers" checked> Cut mistakes &amp; repeated lines</label>
-      <label class="toggle"><input type="checkbox" id="optFillers" checked> Cut ums &amp; uhs</label>
-      <label class="field">Cut pauses longer than <b id="pauseVal"></b>
-        <input type="range" id="pause" min="0.25" max="1.5" step="0.05"></label>
-
-      <div id="stats" class="stats"></div>
-
-      <button id="exportBtn" class="big-btn">Make my video</button>
-      <div id="exportBox" hidden>
-        <div class="progress"><div id="exportBar"></div></div>
-        <p id="exportMsg" class="small muted"></p>
-        <div id="saveRow" class="row" hidden>
-          <button id="saveBtn" class="big-btn">Save to Photos</button>
-          <a id="dlLink" class="btn" download>Download</a>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Compare all looks -->
-  <div id="compare" class="sheet" hidden>
-    <div class="sheet-inner">
-      <div class="row-head"><h2>Same clip, every look</h2><button id="closeCompare" class="ghost">Done</button></div>
-      <p class="small muted">Tap one to use it.</p>
-      <div id="compareGrid" class="compare-grid"></div>
-    </div>
+  <aside class="side" id="side">
+    <div class="brandmark">paige's <em>studio</em></div>
+    <nav id="nav"></nav>
+  </aside>
+  <div class="mainwrap">
+    <header class="mob-top">
+      <div class="brandmark">paige's <em>studio</em></div>
+    </header>
+    <nav class="mob-nav" id="mobNav"></nav>
+    <main id="view" class="view"></main>
   </div>
-</main>
-
-<video id="video" playsinline preload="auto" class="hidden-video"></video>
-<script type="module" src="app.js"></script>
+  <div id="sheet" class="sheet" hidden><div class="sheet-card" id="sheetCard"></div></div>
+  <div id="toast" class="toast"></div>
+  <input type="file" id="uploadInput" accept="image/*,video/*" multiple hidden>
+  <input type="file" id="fontInput" accept=".ttf,.otf,font/ttf,font/otf" hidden>
+  <script type="module" src="studio.js"></script>
 </body>
 </html>

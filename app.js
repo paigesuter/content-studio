@@ -2,6 +2,10 @@ import { analyseAudio, captureAudio, buildPlan, wordsFromASR } from "./engine.js
 import { LOOKS, PALETTES, FONT_LOADS } from "./looks.js";
 import { Player, drawFrame, exportVideo, audioGraph } from "./render.js";
 
+import { loadKit, registerCustomFonts } from "./brand.js";
+import { activeFonts, activePalette, googleFontsHref, loadFontsFor } from "./kit.js";
+import { getBlob, listMedia } from "./library.js";
+
 const $ = (id) => document.getElementById(id);
 const TEST = new URLSearchParams(location.search).has("test");
 const saved = (() => { try { return JSON.parse(localStorage.getItem("cs-prefs") || "{}"); } catch { return {}; } })();
@@ -235,7 +239,46 @@ $("saveBtn").onclick = async () => {
 
 // ---------- start ----------
 
-renderLooks();
-renderPalettes();
-Promise.all(FONT_LOADS.map((f) => document.fonts.load(f).catch(() => {}))).then(() => player.step());
+// "My brand" look + palette, built from the Brand Kit you approved in the studio.
+async function addBrandLook() {
+  try {
+    const kit = await loadKit();
+    if (!kit.approved) return;
+    await registerCustomFonts();
+    const fonts = activeFonts(kit);
+    const pal = activePalette(kit).colors;
+    await loadFontsFor(fonts);
+    const brandPalette = { id: "brand", name: "My brand", accent: pal.pink, accent2: pal.butter, ink: pal.deep, light: pal.text };
+    const brandLook = {
+      id: "brand", name: "My brand", blurb: "Your approved fonts and colours: clean white captions, butter highlight, title-font hook",
+      captions: { font: fonts.primary.family, weight: fonts.primary.weight || 600, size: 60, words: 4, upper: false, y: 0.74,
+        color: "light", highlight: "accent2", stroke: null, strokeW: 0, style: "highlight", shadow: true, pop: false, punct: true },
+      hook: { style: "custom", y: 0.16, font: fonts.title },
+      zoom: { frequency: "low", strength: 1.08 },
+      pacing: { pause: 0.55, padding: 0.12 },
+    };
+    LOOKS.unshift(brandLook);
+    PALETTES.unshift(brandPalette);
+    if (!saved.look) state.look = brandLook;
+    if (!saved.palette) state.palette = brandPalette;
+    if (saved.look === "brand") state.look = brandLook;
+    if (saved.palette === "brand") state.palette = brandPalette;
+  } catch (e) { console.warn("brand look unavailable", e); }
+}
+
+(async () => {
+  document.head.append(Object.assign(document.createElement("link"), { rel: "stylesheet", href: googleFontsHref() }));
+  await addBrandLook();
+  renderLooks();
+  renderPalettes();
+  Promise.all(FONT_LOADS.map((f) => document.fonts.load(f).catch(() => {}))).then(() => player.step());
+  // Opened from the studio library?
+  const clipId = new URLSearchParams(location.search).get("clip");
+  if (clipId) {
+    const blob = await getBlob(clipId);
+    const meta = (await listMedia()).find((m) => m.id === clipId);
+    if (blob) loadClip(new File([blob], meta?.name || "clip.mov", { type: blob.type || meta?.type || "video/quicktime" }));
+    else setStatus("That clip isn't in your library any more.");
+  }
+})();
 window.__state = state; // handy for testing

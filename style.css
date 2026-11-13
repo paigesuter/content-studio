@@ -73,3 +73,5 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 }
 .scan-btn { background: var(--accent); color: #fff; border: 0; border-radius: 12px; padding: 12px 18px;
   font-weight: 700; margin-bottom: 6px; }
+.back-link { color: var(--accent); text-decoration: none; font-weight: 600; }
+header.top .logo { margin-right: auto; margin-left: 14px; }
