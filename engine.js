@@ -60,9 +60,15 @@ export async function captureAudio(video, graph, onProgress) {
     recording = true;
     await video.play();
     await new Promise((res, rej) => {
+      let lastPos = -1, stuckSince = Date.now();
       const tick = () => {
         if (video.ended || video.currentTime >= video.duration - 0.05) return res();
         if (video.error) return rej(new Error("playback stopped"));
+        if (video.currentTime !== lastPos) { lastPos = video.currentTime; stuckSince = Date.now(); }
+        else if (Date.now() - stuckSince > 2500) {
+          if (Date.now() - stuckSince > 12000) return rej(new Error("the video stopped playing"));
+          if (video.paused) video.play().catch(() => {});   // nudge it if something paused it
+        }
         onProgress?.(video.currentTime / video.duration);
         setTimeout(tick, 250);
       };

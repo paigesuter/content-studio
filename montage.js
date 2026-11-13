@@ -66,6 +66,11 @@ const isSpeech = (id) => (transcripts.get(id)?.words?.length || 0) >= 3;
 // ---------------- building the edit ----------------
 function brollItem(id, i, n) {
   const m = media.get(id).meta;
+  if (m.kind === "video" && !transcripts.has(id)) {
+    // not listened to yet: keep the whole clip so nothing you say gets chopped
+    const dur = m.duration || 3;
+    return { mediaId: id, kind: "video", duration: dur, inT: 0, len: +Math.max(0.5, dur - 0.05).toFixed(2), muted: false, xfIn: 0, zoom: 1, speech: false, whole: true };
+  }
   const per = PACE[P.pace];
   let len = m.kind === "photo" ? per + 0.4 : per;
   if (i === 0) len = Math.max(1.4, per * 0.85);
@@ -208,10 +213,20 @@ function transcribePCM(pcm, onStatus) {
   });
 }
 
+let listening = false, scan = null;
+function scanPlayer() {
+  if (scan) return scan;
+  const v = document.createElement("video");
+  v.playsInline = true; v.preload = "auto"; v.className = "hidden-video";
+  document.body.appendChild(v);
+  scan = { v, src: actx.createMediaElementSource(v) };   // not connected to the speakers: silent
+  return scan;
+}
 async function understand(auto = false) {
   const btn = $("flowBtn");
   if (btn.disabled) return;   // already listening
   btn.disabled = true;
+  listening = true;
   let needsTap = false;
   const status = (t) => ($("flowStatus").textContent = t);
   let wake = null; try { wake = await navigator.wakeLock?.request("screen"); } catch {}
@@ -230,13 +245,11 @@ async function understand(auto = false) {
           analysis = await analyseAudio(new File([m.blob], m.meta.name, { type: m.blob.type }));
         } catch {
           if (auto) { needsTap = true; status("Tap 🎙 below so I can listen to these clips (iPhone videos need one tap to scan their sound)."); return; }
-          // iPhone .MOV: play it silently once and record the sound
-          const v = pool[0];
-          v.dataset.url = m.url; v.src = m.url;
+          // iPhone .MOV: play it silently once (on its own hidden player) and record the sound
+          const { v, src } = scanPlayer();
+          v.src = m.url;
           await new Promise((r) => { v.onloadedmetadata = r; v.load(); setTimeout(r, 5000); });
-          monitor.gain.value = 0;
-          analysis = await captureAudio(v, { ctx: actx, src: srcNodes[0], monitor: actx.createGain() }, (p) => status(`${label}: scanning the sound ${Math.round(p * 100)}%`));
-          monitor.gain.value = 1;
+          analysis = await captureAudio(v, { ctx: actx, src, monitor: actx.createGain() }, (p) => status(`${label}: listening ${Math.round(p * 100)}% (keep this screen open)`));
         }
         status(`${label}: listening to what you say…`);
         const out = await transcribePCM(analysis.pcm, (t) => status(`${label}: ${t}`));
@@ -255,6 +268,7 @@ async function understand(auto = false) {
     status("Couldn't listen to the clips: " + (e.message || e));
   } finally {
     btn.disabled = false;
+    listening = false;
     if (!needsTap) btn.textContent = "🎙 Listen again";
     try { await wake?.release(); } catch {}
   }
@@ -653,6 +667,7 @@ async function drawStill() {
 }
 $("playBtn").onclick = async () => {
   if (running) { stop(); $("playBtn").textContent = "▶"; return; }
+  if (listening) { $("status").textContent = "Still listening to your clips. Play will work as soon as that's done (it builds the edit from what you say)."; return; }
   await unlock();
   await computeAlignments((t) => ($("timeLabel").textContent = t));
   $("playBtn").textContent = "❚❚";
@@ -691,8 +706,8 @@ function renderTimeline() {
       c.muted ? el("span", { class: "tl-kind" }, "🔇") : null);
   }), el("button", { class: "tl-add", onclick: openPicker }, "＋"));
   const titleW = Math.min(tm.total, look?.hook?.whole ? tm.total : 3.2) * PX;
-  $("trackText").replaceChildren(P.title ? el("div", { class: "tl-bar text", style: { width: `${Math.max(60, titleW)}px` } }, "Aa " + P.title)
-    : el("div", { class: "tl-empty" }, "no title"), P.captions && groups.length ? el("div", { class: "tl-bar caps", style: { width: `${Math.max(60, tm.total * PX - titleW)}px` } }, `${groups.length} captions`) : null);
+  $("trackText").replaceChildren(...[P.title ? el("div", { class: "tl-bar text", style: { width: `${Math.max(60, titleW)}px` } }, "Aa " + P.title)
+    : el("div", { class: "tl-empty" }, "no title"), P.captions && groups.length ? el("div", { class: "tl-bar caps", style: { width: `${Math.max(60, tm.total * PX - titleW)}px` } }, `${groups.length} captions`) : null].filter(Boolean));
   $("trackMusic").replaceChildren(music ? el("div", { class: "tl-bar music", style: { width: `${Math.max(60, tm.total * PX)}px` } }, "♫ " + music.name) : el("div", { class: "tl-empty" }, "no music"));
 }
 
@@ -745,7 +760,17 @@ $("titleIn").oninput = (e) => { P.title = e.target.value; renderTimeline(); draw
 $("goalIn").oninput = (e) => { P.goal = e.target.value; autosave(); };
 $("clipVol").oninput = (e) => { P.clipVol = +e.target.value; autosave(); };
 $("musicVol").oninput = (e) => { P.musicVol = +e.target.value; autosave(); };
-$("flowBtn").onclick = () => understand();
+$("flowBtn").onclick = () => {
+  // during the tap: let the hidden listening player play (iPhone/iPad only allow it after a tap)
+  try {
+    audioSetup();
+    const { v } = scanPlayer();
+    const first = P.sources.map((id) => media.get(id)).find((m) => m?.meta.kind === "video");
+    if (first && !v.src) v.src = first.url;
+    v.play().then(() => v.pause()).catch(() => {});
+  } catch {}
+  understand();
+};
 $("musicBtn").onclick = () => $("musicIn").click();
 $("musicIn").onchange = async (e) => {
   const f = e.target.files[0]; e.target.value = "";
@@ -851,6 +876,7 @@ $("pickClose").onclick = () => ($("picker").hidden = true);
 let lastFile = null;
 $("exportBtn").onclick = async () => {
   if (!P.clips.length) return;
+  if (listening) { $("status").textContent = "Still listening to your clips. Make my video will work as soon as that's done."; return; }
   stop();
   await unlock();
   $("exportBox").hidden = false; $("saveRow").hidden = true;
