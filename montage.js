@@ -82,6 +82,23 @@ function brollItem(id, i, n) {
   return { mediaId: id, kind: m.kind, duration: dur, inT, len, muted: false, xfIn: 0, zoom: 1, speech: false };
 }
 
+// Speech-to-text leaves "um", "ah" and "erm" out of the words it writes down, so they hide in
+// two places: gaps between words, and words stretched far longer than they take to say.
+// Shrinks stretched words back to a normal length so the hidden "um" becomes a gap, then every
+// gap longer than GAP gets cut.
+const GAP = 0.28;
+function tidyTimings(words) {
+  return words.map((w, i) => {
+    const letters = w.text.replace(/[^a-z0-9]/gi, "").length || 1;
+    const cap = Math.max(0.38, (0.12 + 0.07 * letters) * 1.6);
+    if (w.end - w.start <= cap) return w;
+    const prev = words[i - 1];
+    const startsThought = !prev || /[.!?,]$/.test(prev.text.trim()) || w.start - prev.end > 0.12;
+    // a stretched word that starts a thought had the "um" before it; otherwise the "um" came after
+    return startsThought ? { ...w, start: +(w.end - cap).toFixed(3) } : { ...w, end: +(w.start + cap).toFixed(3) };
+  });
+}
+
 // Splits what you said into clean spoken segments: removes restarts, repeats, ums and pauses.
 function speechSegments(id, range = null, exclude = []) {
   const tr = transcripts.get(id);
@@ -89,19 +106,20 @@ function speechSegments(id, range = null, exclude = []) {
   const mid = (w) => (w.start + w.end) / 2;
   let words = tr.words.filter((w) => !exclude.some(([a, b]) => mid(w) >= a && mid(w) <= b));
   if (range) words = words.filter((w) => mid(w) >= range[0] && mid(w) <= range[1]);
+  words = tidyTimings(words);
   const cuts = blooperCuts(words, { bloopers: !range, fillers: true });
   const kept = words.filter((w) => !cuts.some((c) => (w.start + w.end) / 2 >= c.start && (w.start + w.end) / 2 <= c.end));
   const segs = [];
   let cur = null;
   for (const w of kept) {
-    if (cur && w.start - cur.lastEnd <= 0.8) { cur.lastEnd = w.end; cur.n++; continue; }
+    if (cur && w.start - cur.lastEnd <= GAP) { cur.lastEnd = w.end; cur.n++; continue; }   // any longer gap = a pause or an "um": cut it
     if (cur) segs.push(cur);
     cur = { first: w.start, lastEnd: w.end, n: 1 };
   }
   if (cur) segs.push(cur);
   return segs.map((s) => {
     const inT = Math.max(0, s.first - 0.08);
-    return { inT: +inT.toFixed(3), len: +(Math.min(dur, s.lastEnd + 0.15) - inT).toFixed(3) };
+    return { inT: +inT.toFixed(3), len: +(Math.min(dur, s.lastEnd + 0.1) - inT).toFixed(3) };
   }).filter((s) => s.len > 0.3);
 }
 
