@@ -6,7 +6,7 @@ import { loadBrand, updateBrand, history, revert, addFeedback, loadKit, saveKit,
   registerCustomFonts, removeCustomFont, exportBackup, importBackup, resetBrand } from "./brand.js";
 import { PALETTES, PAIRINGS, googleFontsHref, activePalette, FONT_LIBRARY, fontKey } from "./kit.js";
 import { listSeries, saveSeries, deleteSeries, newSeries, fillTemplate, seriesFonts } from "./series.js";
-import { HOOKS, FORMATS, CAPTION_OPENERS } from "./hooks.js";
+import { HOOKS, FORMATS, CAPTION_OPENERS, herBlock, HER_RULES } from "./hooks.js";
 import { importFiles, listMedia, getBlob, removeMedia, updateMedia, listFolders, addFolder, removeFolder,
   fmtDuration, fmtSize } from "./library.js";
 
@@ -557,6 +557,7 @@ const SECTIONS = [
   { id: "voice", title: "How I write", fields: [["voice.style", "My writing style", "list"], ["voice.examples", "Examples of my tone", "list"], ["voice.examplesNote", "Note", "text"], ["voice.avoidTone", "Never sound like", "list"], ["voice.bannedPhrases", "Banned phrases", "list"], ["voice.punctuation", "Punctuation & emojis", "text"]] },
   { id: "editing", title: "Editing & aesthetic", fields: [["editing.principles", "Editing principles", "list"], ["editing.defaultText", "Default text", "text"], ["editing.formats", "Formats", "text"], ["aesthetic", "Aesthetic", "list"]] },
   { id: "instagram", title: "From my Instagram", note: "What Claude learned from your profile, grid and series. Edit anything that's off.", fields: [["instagram.bio", "Bio", "textarea"], ["instagram.highlights", "Highlights", "list"], ["instagram.series", "My recurring series", "list"], ["instagram.textStyles", "How I use text on screen", "list"], ["instagram.visual", "Visual style", "list"], ["instagram.performance", "What performs", "list"]] },
+  { id: "her", title: "My girl: who I'm talking to", note: "Every hook and caption is about HER life, not mine. Edit this as you learn more about her.", fields: [["her.who", "Everything I know about her", "list"], ["her.watches", "Why she watches", "textarea"], ["her.saves", "Why she saves", "textarea"], ["her.shares", "Why she shares", "textarea"], ["her.follows", "Why she follows", "textarea"], ["her.comments", "Why she comments", "textarea"]] },
   { id: "strategy", title: "Hook strategy", note: "How hooks get written for you. Method inspired by @its.amyjames.", fields: [["strategy.principles", "Principles", "list"], ["strategy.herLife", "Her life (what she's thinking about)", "list"]] },
   { id: "rules", title: "Rules learned from my feedback", fields: [["rules", "Rules", "list"]] },
   { id: "goals", title: "Private goals & notes", note: "Stored only on this device, never in the app's public code.", fields: [["goals.notes", "Goals, numbers, plans, anything private", "textarea"]] },
@@ -722,8 +723,8 @@ VIEWS.brain = async () => [
     el("p", {}, "Everything the studio knows about you. It's used for every idea, hook, caption and edit. Edit anything, any time.")),
   el("div", { class: "card", style: { background: "linear-gradient(135deg,#FDEEF3,#FFF8E1)" } },
     el("div", { class: "eyebrow" }, "my message"), el("p", { class: "quote", style: { margin: "6px 0 0" } }, S.brand.identity.message)),
-  sectionCard(SECTIONS[0]), sectionCard(SECTIONS[1]), pillarsCard(), sectionCard(SECTIONS[2]), sectionCard(SECTIONS[3]),
-  sectionCard(SECTIONS[4]), sectionCard(SECTIONS[5]), sectionCard(SECTIONS[6]), feedbackCard(), sectionCard(SECTIONS[7]), sectionCard(SECTIONS[8]), await historyCard(),
+  sectionCard(SECTIONS[0]), sectionCard(SECTIONS[1]), sectionCard(SECTIONS[6]), pillarsCard(), sectionCard(SECTIONS[2]), sectionCard(SECTIONS[3]),
+  sectionCard(SECTIONS[4]), sectionCard(SECTIONS[7]), sectionCard(SECTIONS[5]), feedbackCard(), sectionCard(SECTIONS[8]), sectionCard(SECTIONS[9]), await historyCard(),
 ];
 
 // ============================================================ BRAND KIT & SETTINGS
@@ -835,17 +836,19 @@ VIEWS.hooks = async () => {
   const pillarName = (id) => S.brand.pillars.find((p) => p.id === id)?.name || "";
   const all = [...bank.mine.map((h) => ({ ...h, mine: true })), ...HOOKS];
   const list = all.filter((h) => hookFilter === "all" || (hookFilter === "fav" && bank.favs.includes(h.text)) || (hookFilter === "mine" && h.mine)
-    || h.p === hookFilter || h.f === hookFilter);
+    || h.p === hookFilter || h.f === hookFilter || (hookFilter.startsWith("r:") && h.r === hookFilter.slice(2)));
   const chip = (id, label) => el("button", { class: "chip" + (hookFilter === id ? " on" : ""), onclick: () => { hookFilter = id; render(); } }, label);
   const hookCard = (h) => {
     const fav = bank.favs.includes(h.text);
     return el("div", { class: "hook-card" },
       el("p", { class: "hook-text" }, h.text),
+      h.her ? el("p", { class: "hook-her" }, "she's thinking: “", h.her, "”") : null,
       el("div", { class: "row small" },
         h.f ? el("span", { class: "tag pink" }, FORMATS.find((x) => x.id === h.f)?.name) : null,
         h.t && !h.f ? el("span", { class: "tag" }, h.t) : null,
         h.p ? el("span", { class: "tag" }, pillarName(h.p)) : null,
         h.mine ? el("span", { class: "tag" }, "mine") : null,
+        h.r ? el("span", { class: "tag resp" }, { save: "makes her save", share: "makes her share", comment: "makes her comment", follow: "makes her follow" }[h.r] || h.r) : null,
         el("span", { class: "spacer" }),
         el("button", { class: "btn-ghost", onclick: async () => { toast((await copyText(h.text)) ? "Copied ✓" : "Couldn't copy"); } }, "Copy"),
         el("button", { class: "btn-ghost", onclick: async () => {
@@ -858,7 +861,7 @@ VIEWS.hooks = async () => {
   const addFormat = el("select", { style: { width: "auto" } }, el("option", { value: "" }, "No format"), FORMATS.map((f) => el("option", { value: f.id }, f.name)));
   return [
     el("div", { class: "page-head row" }, el("div", {}, el("h1", {}, "Hook ", el("em", {}, "Bank")),
-      el("p", {}, "Hooks about HER life, written in your voice. Tap ♡ to favourite. Favourites and your own hooks show up in the editor too.")),
+      el("p", {}, "Every hook is about HER life, not yours: her 2am thoughts, her money, her future, the girl she's becoming. Your life is the proof. Tap ♡ to favourite.")),
       el("span", { class: "spacer" }),
       el("button", { class: "btn-pink", onclick: () => askClaudeHooks(bank) }, "✧ Ask Claude for more")),
     el("h2", { style: { margin: "6px 0 4px" } }, "The 6 hook formats"),
@@ -882,6 +885,7 @@ VIEWS.hooks = async () => {
         } }, "Add"))),
     el("div", { class: "chips scroll", style: { margin: "16px 0 12px" } },
       chip("all", `All (${all.length})`), chip("fav", "♥ Favourites"), chip("mine", "My hooks"),
+      chip("r:save", "Makes her save"), chip("r:share", "Makes her share"), chip("r:comment", "Makes her comment"), chip("r:follow", "Makes her follow"),
       S.brand.pillars.map((p) => chip(p.id, p.name)), FORMATS.map((f) => chip(f.id, f.name))),
     el("div", { class: "hook-list" }, list.map(hookCard)),
   ];
@@ -892,8 +896,7 @@ function askClaudeHooks(bank) {
   const prompt = `I'm Paige (@paigesuterx). Write 15 NEW hooks for my Reels in my voice.
 
 ABOUT ME: ${b.identity.oneLiner} Message: ${b.identity.message}
-HER (my audience): ${b.audience.who} Biggest thought: "${b.audience.innerThought}"
-Her life: ${(b.strategy?.herLife || []).join("; ")}
+${herBlock(b)}
 My pillars: ${b.pillars.map((p) => `${p.name} (${p.topics.slice(0, 5).join(", ")})`).join("; ")}
 How I write: ${(b.voice.style || []).join("; ")}
 Tone examples (don't reuse): ${(b.voice.examples || []).join(" / ")}
@@ -901,14 +904,15 @@ Banned phrases: ${(b.voice.bannedPhrases || []).join(", ")}
 Hook strategy: ${(b.strategy?.principles || []).join("; ")}
 ${(b.rules || []).length ? "Rules from my feedback: " + b.rules.join("; ") : ""}
 
-Use the 6 formats (age-based, list, emotive quote, identity maxxing, algorithm call-out, strong language), spread across my 4 pillars. Hook about HER life, not my niche. Max ~14 words each, lowercase is fine.
+${HER_RULES}
+Use the 6 formats (age-based, list, emotive quote, identity maxxing, algorithm call-out, strong language), spread across my 4 pillars. Max ~14 words each, lowercase is fine.
 Reply with ONLY one JSON code block:
 \`\`\`json
-{"hooks": [{"text": "...", "format": "age|list|emotive|identity|callout|strong", "pillar": "style|becoming|experiencing|little"}]}
+{"hooks": [{"text": "...", "format": "age|list|emotive|identity|callout|strong", "pillar": "style|becoming|experiencing|little", "her": "the exact thought of hers it hits", "does": "save|share|comment|follow"}]}
 \`\`\``;
   claudeSheet("Ask Claude for more hooks", prompt, async (data) => {
     const hooks = (data.hooks || []).filter((h) => h && h.text);
-    hooks.forEach((h, i) => bank.mine.unshift({ id: Date.now().toString(36) + i, text: String(h.text), p: h.pillar || null, f: FORMATS.some((f) => f.id === h.format) ? h.format : null, t: "from Claude", k: [] }));
+    hooks.forEach((h, i) => bank.mine.unshift({ id: Date.now().toString(36) + i, text: String(h.text), p: h.pillar || null, f: FORMATS.some((f) => f.id === h.format) ? h.format : null, t: "from Claude", her: h.her || "", r: h.does || "", k: [] }));
     await saveHookBank(bank);
     return hooks.length ? `Added ${hooks.length} hooks to "My hooks" ✓` : "No hooks found in that reply.";
   });

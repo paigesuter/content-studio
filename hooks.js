@@ -1,71 +1,62 @@
-// Starter hook bank, written for Paige's voice: casual, honest, a little cheeky, lowercase-friendly.
-// Not life-coach, not "that girl". Tags help the editor pick hooks that fit the clip.
-// p = pillar (style | becoming | experiencing | little), t = type, k = keywords that make it a good match.
+// Hook bank for Paige: every hook is about HER (the girl watching), not about Paige.
+// Paige's life is the proof; the girl is the subject. She should think "that's literally me"
+// or "that's who i'm becoming". Written in Paige's voice: casual, honest, a little cheeky, lowercase.
+// p = pillar, t = type, f = format, her = the thought it hits, r = what it makes her do, k = words that make it a match.
 
 export const HOOKS = [
-  // ---- becoming her / moving abroad / growth
-  { text: "i moved to the other side of the world with no real plan", p: "becoming", t: "moving abroad", k: ["moved", "move", "australia", "uk", "plan", "abroad", "left"] },
-  { text: "nobody tells you how weird it is to start your whole life again at 22", p: "becoming", t: "moving abroad", k: ["start", "again", "new", "life", "moved", "weird"] },
-  { text: "the version of me that stayed in the uk would not believe this", p: "becoming", t: "different versions", k: ["uk", "stayed", "version", "home", "believe"] },
-  { text: "there are so many versions of your life you could be living", p: "becoming", t: "different versions", k: ["version", "versions", "life", "could", "different"] },
-  { text: "i was so scared to do this and honestly it's the best thing i've done", p: "becoming", t: "personal growth", k: ["scared", "scary", "nervous", "best", "decision"] },
-  { text: "things i wish someone told me before i moved abroad", p: "becoming", t: "things i wish i knew", k: ["wish", "knew", "moved", "abroad", "before", "tips"] },
-  { text: "i didn't have it figured out. i still don't. here's what i know so far", p: "becoming", t: "honest yap", k: ["figured", "know", "honestly", "still", "plan"] },
-  { text: "the scariest decisions are usually the ones worth making", p: "becoming", t: "voiceover", k: ["decision", "scared", "scary", "worth", "choice"] },
-  { text: "a little reminder from someone who also overthinks everything", p: "becoming", t: "honest yap", k: ["overthink", "overthinking", "worry", "anxious", "think"] },
-  { text: "what nobody shows you about building a life abroad", p: "becoming", t: "moving abroad", k: ["abroad", "hard", "lonely", "real", "truth"] },
-  { text: "i used to wait until i felt ready. spoiler: you never feel ready", p: "becoming", t: "personal growth", k: ["ready", "wait", "start", "never", "confidence"] },
-  { text: "trying to make money online in my 20s, an honest update", p: "becoming", t: "honest yap", k: ["money", "online", "income", "ugc", "work", "job", "business"] },
-  { text: "if you feel stuck right now, watch this", p: "becoming", t: "honest yap", k: ["stuck", "routine", "same", "bored", "change"] },
-  { text: "the confidence came after, not before", p: "becoming", t: "voiceover", k: ["confidence", "confident", "after", "before", "brave"] },
+  // ---- becoming her
+  { text: "if you've had 'move abroad' in your notes app for two years, this is for you", p: "becoming", t: "moving abroad", f: "callout", her: "one day i'll move abroad", r: "share", k: ["move", "moved", "abroad", "australia", "uk", "notes", "plan"] },
+  { text: "you're not behind. you're just in the part nobody films", p: "becoming", t: "honest yap", f: "emotive", her: "am i wasting my 20s?", r: "save", k: ["behind", "late", "20s", "age", "time", "figured"] },
+  { text: "if your life looks fine on paper but feels a bit small, watch this", p: "becoming", t: "honest yap", f: "callout", her: "is this it?", r: "share", k: ["stuck", "same", "routine", "small", "fine", "bored", "life"] },
+  { text: "the girl you're scared to become is honestly having the best time", p: "becoming", t: "personal growth", f: "identity", her: "i want more but i'm scared", r: "save", k: ["scared", "scary", "brave", "become", "change"] },
+  { text: "things you stop doing when you finally pick yourself", p: "becoming", t: "personal growth", f: "identity", her: "i always put myself last", r: "save", k: ["stopped", "stop", "myself", "choose", "pick"] },
+  { text: "you don't need a plan. you need a date and a one-way ticket", p: "becoming", t: "moving abroad", f: "strong", her: "i can't go until i have it all figured out", r: "share", k: ["plan", "ticket", "flight", "moved", "move", "figured"] },
+  { text: "if you overthink every decision, this one's for you (i still do)", p: "becoming", t: "honest yap", f: "callout", her: "i overthink everything", r: "comment", k: ["overthink", "overthinking", "decision", "think", "worry"] },
+  { text: "the version of you that books the flight is already in there", p: "becoming", t: "voiceover", f: "emotive", her: "i'm not brave enough", r: "save", k: ["flight", "book", "version", "brave", "travel"] },
+  { text: "you're allowed to want a bigger life than the one you were handed", p: "becoming", t: "voiceover", f: "emotive", her: "is it greedy to want more?", r: "share", k: ["life", "want", "more", "bigger", "home"] },
+  { text: "what nobody tells you about starting again at 22", p: "becoming", t: "moving abroad", f: "age", her: "it's too late to start over", r: "save", k: ["start", "again", "new", "22", "23", "age", "moved"] },
+  { text: "if you're 20 to 25 and scared you're wasting your 20s, read this", p: "becoming", t: "honest yap", f: "age", her: "am i wasting my 20s?", r: "save", k: ["20s", "age", "wasting", "young", "years"] },
+  { text: "stop waiting to feel ready. ready is a myth, babe", p: "becoming", t: "personal growth", f: "strong", her: "i'll do it when i feel ready", r: "share", k: ["ready", "wait", "waiting", "start", "confidence"] },
+  { text: "the friend who 'always wanted to travel' doesn't have to stay that friend", p: "becoming", t: "travel diary", f: "identity", her: "i'm the one who always talks about it", r: "share", k: ["friend", "travel", "always", "wanted"] },
+  { text: "if you want your own money and a creative job, this is your sign to start", p: "becoming", t: "online income", f: "callout", her: "a creative career isn't realistic for me", r: "save", k: ["money", "income", "online", "ugc", "job", "work", "creative"] },
+  { text: "you're one decision away from a completely different life", p: "becoming", t: "voiceover", f: "emotive", her: "nothing ever changes", r: "save", k: ["decision", "choice", "different", "change", "life"] },
 
-  // ---- style / fashion
-  { text: "outfits for every version of you", p: "style", t: "fashion finds", k: ["outfit", "outfits", "style", "wear", "fashion", "finds"] },
-  { text: "styling one piece three ways because i can't stop", p: "style", t: "styling", k: ["styling", "ways", "piece", "style", "wear"] },
-  { text: "fashion design graduate rates her own outfits", p: "style", t: "outfit diary", k: ["outfit", "rate", "design", "fashion", "wore"] },
-  { text: "everything i wore this week (no repeats, i'm unwell)", p: "style", t: "outfit diary", k: ["week", "wore", "outfits", "repeat"] },
-  { text: "the find of the month and i'm being dramatic", p: "style", t: "fashion finds", k: ["find", "found", "obsessed", "bought", "new"] },
-  { text: "packing for bali like the outfits are the main itinerary", p: "style", t: "holiday wardrobe", k: ["packing", "pack", "bali", "holiday", "trip", "suitcase"] },
-  { text: "i studied fashion so you don't have to: here's the trick", p: "style", t: "styling", k: ["trick", "tip", "fashion", "studied", "design", "fit"] },
-  { text: "get ready with me but i change my outfit four times", p: "style", t: "getting ready", k: ["ready", "grwm", "outfit", "change", "makeup"] },
-  { text: "dressing for the life you're building, not the one you had", p: "style", t: "personal style", k: ["dress", "style", "life", "building", "confidence"] },
+  // ---- style
+  { text: "if you know exactly what you'd wear in your head but never actually wear it", p: "style", t: "personal style", f: "callout", her: "i always end up in the same jeans", r: "save", k: ["wear", "outfit", "style", "clothes", "jeans"] },
+  { text: "outfits for every version of you (yes, even the one you haven't met yet)", p: "style", t: "fashion finds", f: "identity", her: "i want to dress like the girl i'm becoming", r: "save", k: ["outfit", "outfits", "fashion", "finds", "version"] },
+  { text: "3 styling tricks that make you look like you have your life together", p: "style", t: "styling", f: "list", her: "i want to look put together", r: "save", k: ["styling", "tricks", "style", "outfit", "tips"] },
+  { text: "dress like the girl who already lives the life you want", p: "style", t: "personal style", f: "identity", her: "i want to feel like her", r: "save", k: ["dress", "style", "life", "outfit", "confidence"] },
+  { text: "if you buy clothes then return them because they don't feel like 'you'", p: "style", t: "personal style", f: "callout", her: "i don't know what my style is", r: "comment", k: ["buy", "return", "clothes", "style", "haul"] },
+  { text: "pack for the trip like you're the main event (because you are)", p: "style", t: "holiday wardrobe", f: "strong", her: "i never feel good in holiday pics", r: "save", k: ["packing", "pack", "holiday", "trip", "bali", "suitcase"] },
+  { text: "the fashion-student trick that makes a cheap outfit look expensive", p: "style", t: "styling", f: "strong", her: "i want to look expensive on a budget", r: "save", k: ["fashion", "trick", "cheap", "expensive", "design"] },
+  { text: "you don't need a new wardrobe. you need these 4 pieces", p: "style", t: "styling", f: "list", her: "i have nothing to wear", r: "save", k: ["wardrobe", "pieces", "basics", "outfit"] },
 
-  // ---- experiencing life / travel / bali
-  { text: "island diaries: the day i didn't want to end", p: "experiencing", t: "travel diary", k: ["bali", "island", "day", "beach", "sunset"] },
-  { text: "a very unproductive (perfect) day in bali", p: "experiencing", t: "bali", k: ["bali", "day", "beach", "pool", "relax"] },
-  { text: "said yes to everything this week. here's what happened", p: "experiencing", t: "saying yes", k: ["yes", "week", "spontaneous", "trip", "adventure"] },
-  { text: "things that just make sense in bali", p: "experiencing", t: "bali", k: ["bali", "scooter", "cafe", "smoothie", "uluwatu", "canggu"] },
-  { text: "frequent flyer, infrequent homebody: a travel day", p: "experiencing", t: "travel day", k: ["flight", "airport", "plane", "travel", "fly"] },
-  { text: "the gold coast at 6am hits different", p: "experiencing", t: "australia", k: ["morning", "sunrise", "gold", "coast", "beach", "australia"] },
-  { text: "my first solo trip and every thought i had", p: "experiencing", t: "solo", k: ["solo", "alone", "myself", "first", "trip"] },
-  { text: "if you're thinking about moving to australia, this is your sign to stop thinking", p: "experiencing", t: "australia", k: ["australia", "visa", "moving", "move", "thinking"] },
+  // ---- experiencing life
+  { text: "if you've saved 300 bali videos and booked nothing, this is your sign", p: "experiencing", t: "bali", f: "callout", her: "one day i'll go to bali", r: "share", k: ["bali", "saved", "trip", "book", "travel"] },
+  { text: "send this to the friend you keep saying 'we should go' to", p: "experiencing", t: "travel diary", f: "strong", her: "we always say we'll go", r: "share", k: ["friend", "trip", "travel", "go", "bali", "beach"] },
+  { text: "a normal tuesday in bali, so you know it's actually possible", p: "experiencing", t: "bali", her: "that life isn't for people like me", r: "follow", k: ["bali", "day", "normal", "tuesday", "life"] },
+  { text: "if you think living abroad is only for rich girls, watch how i actually do it", p: "experiencing", t: "moving abroad", f: "callout", her: "i could never afford that", r: "save", k: ["money", "afford", "abroad", "cost", "visa", "australia"] },
+  { text: "5 things in bali that'll make you book a one-way ticket", p: "experiencing", t: "bali", f: "list", her: "is it worth it?", r: "save", k: ["bali", "things", "uluwatu", "canggu", "cafe", "beach"] },
+  { text: "the trip you keep putting off is the one you'll talk about forever", p: "experiencing", t: "voiceover", f: "emotive", her: "maybe next year", r: "share", k: ["trip", "travel", "putting", "off", "forever"] },
+  { text: "if you're thinking about australia, this is your sign to stop thinking", p: "experiencing", t: "australia", f: "callout", her: "should i do a working holiday?", r: "save", k: ["australia", "visa", "working", "holiday", "thinking"] },
 
-  // ---- little life / pilates / routines
-  { text: "promise 1 of 60: showing up even when i don't want to", p: "little", t: "pilates", k: ["pilates", "class", "promise", "workout", "showing", "60"] },
-  { text: "pilates girlies, how are we feeling about class {n}", p: "little", t: "pilates", k: ["pilates", "class", "sore", "workout", "reformer"] },
-  { text: "a slow morning on the coast, no alarms", p: "little", t: "morning routine", k: ["morning", "coffee", "slow", "sunrise", "routine"] },
-  { text: "the little things that made today feel good", p: "little", t: "little moments", k: ["little", "today", "things", "good", "day"] },
-  { text: "making ordinary days feel like something", p: "little", t: "daily vlog", k: ["day", "ordinary", "normal", "routine", "vlog"] },
-  { text: "coffee, sunset, beach walk: the holy trinity", p: "little", t: "little moments", k: ["coffee", "sunset", "beach", "walk"] },
-  { text: "a day in my life but i'm honest about the boring bits", p: "little", t: "day in my life", k: ["day", "life", "boring", "honest", "vlog"] },
-  { text: "the only stress i want is my next outfit and destination", p: "little", t: "funny", k: ["stress", "outfit", "destination", "travel"] },
+  // ---- little life
+  { text: "the 6am version of you is closer than you think", p: "little", t: "morning routine", f: "identity", her: "i want to be a morning person", r: "save", k: ["morning", "6am", "routine", "wake", "early"] },
+  { text: "you don't need a new life to romanticise this one", p: "little", t: "little moments", f: "emotive", her: "my life is too boring to romanticise", r: "share", k: ["romanticise", "life", "little", "ordinary", "day"] },
+  { text: "if you keep starting pilates 'on monday', do class 1 with me", p: "little", t: "pilates", f: "callout", her: "i'll start on monday", r: "follow", k: ["pilates", "class", "monday", "start", "workout", "promise"] },
+  { text: "promise 1 of 60: showing up for her (the girl you're becoming)", p: "little", t: "pilates", f: "identity", her: "i never stick to anything", r: "follow", k: ["pilates", "promise", "class", "60", "showing"] },
+  { text: "little things that make an ordinary day feel like yours", p: "little", t: "little moments", f: "list", her: "my days all feel the same", r: "save", k: ["little", "things", "day", "ordinary", "coffee", "sunset"] },
+  { text: "a slow morning for the girl who's always rushing", p: "little", t: "morning routine", f: "identity", her: "i never have time for me", r: "save", k: ["morning", "slow", "rushing", "coffee", "routine"] },
+  { text: "if your weekends disappear on your phone, steal this one", p: "little", t: "day in my life", f: "callout", her: "my weekends feel wasted", r: "save", k: ["weekend", "phone", "day", "life", "vlog"] },
+  { text: "things you stop doing when you start showing up for yourself", p: "little", t: "pilates", f: "identity", her: "i let myself down", r: "save", k: ["stop", "showing", "pilates", "habits", "gym"] },
 
   // ---- funny / relatable / tiktok diary
-  { text: "unfortunately my entire personality is…", p: "little", t: "funny", k: ["personality", "obsessed", "love", "always"] },
-  { text: "storytime: i really should not have done this", p: "becoming", t: "storytime", k: ["storytime", "story", "happened", "should", "mistake"] },
-  { text: "tell me you moved abroad without telling me", p: "becoming", t: "funny", k: ["moved", "abroad", "uk", "australia", "british"] },
-  { text: "british girl in australia, day whatever: it's still too hot", p: "experiencing", t: "funny", k: ["british", "australia", "hot", "weather", "sun"] },
-  { text: "diary entry: i have no idea what i'm doing (but it's going well)", p: "becoming", t: "tiktok diary", k: ["idea", "doing", "diary", "honestly", "going"] },
-  { text: "chatty update because a lot has happened", p: "becoming", t: "honest yap", k: ["update", "happened", "news", "lot", "chat"] },
-
-  // ---- photo dumps / voiceover storytelling
-  { text: "proof that saying yes was the right call", p: "experiencing", t: "photo dump", k: ["yes", "trip", "memories", "dump", "photos"] },
-  { text: "a month in pictures (that i'll look back on forever)", p: "little", t: "photo dump", k: ["month", "pictures", "photos", "memories"] },
-  { text: "a year ago i was too scared to post this", p: "becoming", t: "voiceover", k: ["year", "ago", "scared", "post", "camera"] },
-  { text: "this is what the other side of a scary decision looks like", p: "becoming", t: "voiceover", k: ["decision", "scary", "side", "other", "worth"] },
+  { text: "tell me you're a 'one day i'll move abroad' girl without telling me", p: "becoming", t: "funny", her: "that's literally me", r: "comment", k: ["abroad", "move", "one", "day"] },
+  { text: "the day you stop talking about it and actually go", p: "experiencing", t: "funny", her: "i want to be that girl", r: "share", k: ["went", "finally", "trip", "moved", "talking"] },
+  { text: "if this found you, you're probably planning your escape in your head right now", p: "becoming", t: "funny", f: "callout", her: "i daydream about leaving", r: "comment", k: ["escape", "planning", "leave", "travel", "move"] },
+  { text: "girls who have 40 unposted drafts, this one's for you", p: "becoming", t: "online income", f: "callout", her: "i'm too scared to post", r: "comment", k: ["drafts", "post", "posting", "content", "camera", "scared"] },
 ];
 
-// The 6 hook formats (method inspired by @its.amyjames), adapted with Paige examples.
 export const FORMATS = [
   { id: "age", name: "Age-based", goal: "make her instantly think: \"she's talking to me.\"",
     formula: "i'm [age]. if you're between [ages], [do / stop doing this] before [milestone].",
@@ -87,27 +78,6 @@ export const FORMATS = [
     why: "A slightly unhinged opener plus a result she wants = instant curiosity." },
 ];
 
-HOOKS.push(
-  { text: "i'm 23. if you're 20 to 25 and dreaming about moving abroad, read this before you talk yourself out of it", p: "becoming", t: "age-based", f: "age", k: ["moved", "abroad", "move", "dream", "age", "23"] },
-  { text: "i'm 23. if you're in your early 20s, start doing these things before you're 25", p: "becoming", t: "age-based", f: "age", k: ["habits", "start", "20s", "age", "things"] },
-  { text: "if you're 22 and feel behind, this is what 23 looked like for me", p: "becoming", t: "age-based", f: "age", k: ["behind", "age", "life", "year"] },
-  { text: "5 weird signs you're about to outgrow your hometown", p: "becoming", t: "lists", f: "list", k: ["home", "hometown", "outgrow", "change", "signs"] },
-  { text: "4 unexpected things that changed when i moved to australia", p: "becoming", t: "lists", f: "list", k: ["moved", "australia", "changed", "things"] },
-  { text: "3 outfits that made me feel like a completely different person", p: "style", t: "lists", f: "list", k: ["outfit", "outfits", "different", "feel"] },
-  { text: "i lied. i'm not brave. i just couldn't stand the idea of staying the same", p: "becoming", t: "emotive quote", f: "emotive", k: ["brave", "same", "scared", "change"] },
-  { text: "i lied. i don't have it figured out. i'm doing it anyway", p: "becoming", t: "emotive quote", f: "emotive", k: ["figured", "anyway", "plan", "doing"] },
-  { text: "i lied. moving abroad wasn't a holiday. it was the hardest, best thing i've done", p: "becoming", t: "emotive quote", f: "emotive", k: ["moving", "abroad", "hard", "best"] },
-  { text: "things i don't do anymore as a girl who moved abroad alone", p: "becoming", t: "identity maxxing", f: "identity", k: ["moved", "alone", "abroad", "anymore"] },
-  { text: "things i stopped doing when i started dressing for the life i want", p: "style", t: "identity maxxing", f: "identity", k: ["dress", "dressing", "style", "stopped"] },
-  { text: "things i don't do anymore as a girl who shows up for herself (60 classes in)", p: "little", t: "identity maxxing", f: "identity", k: ["pilates", "class", "show", "showing", "promise"] },
-  { text: "if this found you, you've been 'about to move abroad' for two years", p: "becoming", t: "algorithm call-out", f: "callout", k: ["move", "abroad", "years", "thinking"] },
-  { text: "if this landed on your feed, you've probably saved 200 bali videos and booked nothing", p: "experiencing", t: "algorithm call-out", f: "callout", k: ["bali", "saved", "trip", "travel", "book"] },
-  { text: "if this found you, you're probably the friend who overthinks every single decision", p: "becoming", t: "algorithm call-out", f: "callout", k: ["overthink", "decision", "friend", "think"] },
-  { text: "stupid easy things i did to stop overthinking every decision", p: "becoming", t: "strong language", f: "strong", k: ["overthink", "decision", "easy", "stop"] },
-  { text: "the unhinged reason i left the uk with no plan (it worked)", p: "becoming", t: "strong language", f: "strong", k: ["uk", "left", "plan", "reason"] },
-  { text: "lazy girl outfit tricks i stole from studying fashion design", p: "style", t: "strong language", f: "strong", k: ["outfit", "fashion", "design", "tricks", "lazy"] },
-);
-
 // Caption first lines that work as a second hook (from the trial-reel method).
 export const CAPTION_OPENERS = ["the how??? ↓", "wait for number 3", "i almost didn't post this", "why did nobody tell me this", "save this for later", "this one's for the girl who…"];
 
@@ -124,3 +94,19 @@ export function suggestHooks(transcript, { pillar = null, n = 6, shuffleSeed = 0
   });
   return scored.sort((a, b) => b.score - a.score).slice(0, n);
 }
+
+// Shared prompt pieces so every "Ask Claude" request is written about HER.
+export function herBlock(b) {
+  const h = b.her || {};
+  const list = (h.who || b.strategy?.herLife || []).map((x) => `- ${x}`).join("\n");
+  return `WHO I'M TALKING TO (${h.title || "my girl"}): ${b.audience?.who || ""}
+Her biggest thought: "${b.audience?.innerThought || ""}"
+Everything I know about her:
+${list}
+Why she watches: ${h.watches || ""}
+Why she saves: ${h.saves || ""}
+Why she shares: ${h.shares || ""}
+Why she follows: ${h.follows || ""}
+Why she comments: ${h.comments || ""}`;
+}
+export const HER_RULES = `RULES FOR HOOKS: write every hook about HER life, not mine. Nobody's lying in bed thinking about my niche; she's thinking about her money, her future, the girl she wants to become. Use "you", "the girl who…", "if you…" or identity statements so she thinks "that's literally me" or "that's who i'm becoming". My story is only the proof. Hit a specific thought from her list. Sound like her bestie, not a coach.`;

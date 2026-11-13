@@ -10,7 +10,7 @@ import { PAIRINGS, PALETTES, googleFontsHref, loadFontsFor, activeFonts, activeP
 import { loadKit, loadBrand, registerCustomFonts } from "./brand.js";
 import { drawHook, drawCaptions, pickMime } from "./render.js";
 import { analyseAudio, captureAudio, blooperCuts, groupWords, wordsFromASR } from "./engine.js";
-import { suggestHooks } from "./hooks.js";
+import { suggestHooks, herBlock, HER_RULES } from "./hooks.js";
 import { db } from "./db.js";
 
 const $ = (id) => document.getElementById(id);
@@ -244,17 +244,19 @@ async function storyPrompt() {
 
 WHAT I'M TRYING TO MAKE: ${P.goal || "(work it out from what I say)"}
 ${series ? `It's part of my "${series.name}" series.` : ""}
-My audience: ${b.audience.who} Biggest thought: "${b.audience.innerThought}"
+${herBlock(b)}
 My voice: ${(b.voice.style || []).slice(0, 4).join("; ")}
 
 THE CLIPS (sentences are numbered like A1, A2):
 ${lines}
 
+${HER_RULES}
+Build the edit for HER: open with the line that makes her think "that's literally me", keep the parts that are useful or relatable to her life, and end on what it means for her.
 Edit it like a good editor: pick the best sentences in the order that tells the story clearly, cut repeats, rambling, mistakes and anything that doesn't fit. You can reorder sentences and clips, and place b-roll/photos between sentences (or at the start/end) to break up talking. Aim for under ~60 seconds unless the story needs more. Open with the strongest line.
 
 Reply with ONLY one JSON code block:
 \`\`\`json
-{"title": "short on-screen hook in my voice",
+{"title": "short on-screen hook about HER, in my voice",
  "edit": [{"clip": "A", "sentences": [2, 3]}, {"clip": "C"}, {"clip": "B", "sentences": [1]}],
  "why": "one line on the story you built"}
 \`\`\`
@@ -644,7 +646,7 @@ async function renderHookIdeas() {
   const hb = (await db.getValue("hookbank", null)) || { favs: [], mine: [] };
   const said = P.sources.filter(isSpeech).map((id) => transcripts.get(id).words.map((w) => w.text).join(" ")).join(" ");
   const ideas = suggestHooks(said, { pillar: series?.pillar || null, n: 5, shuffleSeed: Math.floor(Math.random() * 9), mine: hb.mine, favs: hb.favs });
-  $("hookIdeas").replaceChildren(...ideas.map((h) => el("button", { class: "chip", onclick: () => { P.title = h.text.replace(/\{n\}/g, P.ep.n); $("titleIn").value = P.title; renderTimeline(); drawStill(); autosave(); } }, h.text)));
+  $("hookIdeas").replaceChildren(...ideas.map((h) => el("button", { class: "chip", title: h.her ? `she's thinking: ${h.her}` : "", onclick: () => { P.title = h.text.replace(/\{n\}/g, P.ep.n); $("titleIn").value = P.title; renderTimeline(); drawStill(); autosave(); } }, h.text)));
 }
 $("moreHooks").onclick = renderHookIdeas;
 

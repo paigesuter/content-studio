@@ -7,7 +7,7 @@ import { activeFonts, activePalette, googleFontsHref, loadFontsFor } from "./kit
 import { getBlob, listMedia } from "./library.js";
 import { getSeries, fillTemplate, logEpisode, TEXT_POSITIONS, seriesFonts, needsWord, needsPlace } from "./series.js";
 import { PAIRINGS as KIT_PAIRINGS, PALETTES as KIT_PALETTES } from "./kit.js";
-import { suggestHooks } from "./hooks.js";
+import { suggestHooks, herBlock, HER_RULES } from "./hooks.js";
 import { loadBrand } from "./brand.js";
 import { db as storeDb } from "./db.js";
 
@@ -220,7 +220,7 @@ function showHookIdeas() {
   $("askClaude").disabled = !state.analysis;
   const list = suggestHooks(transcript(), { pillar: series?.pillar || null, n: 6, shuffleSeed: shuffleN, mine: hookbank.mine, favs: hookbank.favs });
   $("ideasNote").textContent = state.words.length ? "From your hook bank, matched to what you said. Tap one to use it." : "From your hook bank. Tap one to use it.";
-  $("hookIdeas").replaceChildren(...list.map((h) => ideaButton(h.text, h.t)));
+  $("hookIdeas").replaceChildren(...list.map((h) => ideaButton(h.text, h.her ? `she's thinking: “${h.her}”` : h.t)));
 }
 $("shuffleHooks").onclick = () => { shuffleN++; showHookIdeas(); };
 
@@ -233,12 +233,11 @@ async function buildPrompt() {
 ABOUT ME
 Message: ${b.identity.message}
 Who I am: ${b.identity.oneLiner}
-My audience: ${b.audience.who} Their biggest thought: "${b.audience.innerThought}"
+${herBlock(b)}
 My pillars: ${b.pillars.map((p) => p.name).join(", ")}
 How I write:
 ${lines(b.voice.style)}
 Tone examples (learn the vibe, don't reuse): ${(b.voice.examples || []).join(" / ")}
-Her life (what my audience is thinking about): ${(b.strategy?.herLife || []).join("; ")}
 Hook strategy: ${(b.strategy?.principles || []).join("; ")}
 Never sound like: ${(b.voice.avoidTone || []).join(", ")}
 Banned phrases: ${(b.voice.bannedPhrases || []).join(", ")}
@@ -251,11 +250,13 @@ What I say (transcript): "${transcript() || "(no speech, it's a visual video)"}"
 Reply with ONLY one JSON code block, exactly this shape:
 \`\`\`json
 {"summary": "one line: what this video is about",
- "hooks": [{"text": "on-screen hook, max ~10 words", "why": "few words"}],
+ "hooks": [{"text": "on-screen hook, max ~12 words", "her": "the thought of hers it hits", "does": "save|share|comment|follow"}],
  "onscreen": ["other short text-on-screen ideas"],
  "captions": [{"style": "short & cheeky", "text": "..."}, {"style": "casual & funny", "text": "..."}, {"style": "reflective", "text": "..."}, {"style": "storytelling", "text": "..."}],
  "hashtags": ["only if they genuinely fit, else empty"]}
 \`\`\`
+${HER_RULES}
+Captions should also talk to her (what this means for HER life), with my story as the proof.
 Give 8 hooks using a mix of the 6 formats (age-based, list, emotive quote "i lied…", identity maxxing "things i don't do anymore as a…", algorithm call-out "if this found you…", strong language). Hook about HER life, not my niche. Make the first line of each caption a second hook (like "the how??? ↓" or "i almost didn't post this"). Hooks must relate to what I actually said. Lowercase is fine. No life-coach tone, no banned phrases, no excessive exclamation marks.`;
 }
 
@@ -283,7 +284,7 @@ function showClaudeResults(d) {
   const h = (t) => { const e = document.createElement("h3"); e.className = "res-h"; e.textContent = t; return e; };
   const nodes = [];
   if (d.summary) { const p = document.createElement("p"); p.className = "small muted"; p.textContent = d.summary; nodes.push(p); }
-  if (d.hooks?.length) { nodes.push(h("✧ Claude's hooks for this video")); d.hooks.forEach((x) => nodes.push(ideaButton(x.text || String(x), x.why))); }
+  if (d.hooks?.length) { nodes.push(h("✧ Claude's hooks for this video")); d.hooks.forEach((x) => nodes.push(ideaButton(x.text || String(x), x.her ? `she's thinking: “${x.her}”${x.does ? " · makes her " + x.does : ""}` : x.why))); }
   if (d.onscreen?.length) { nodes.push(h("More text-on-screen ideas")); d.onscreen.forEach((x) => nodes.push(ideaButton(String(x)))); }
   if (d.captions?.length) {
     nodes.push(h("Captions for your post"));

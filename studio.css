@@ -281,3 +281,5 @@ h2 { font-size: 19px; }
 .hook-card { background: var(--glass); border: 1px solid #fff; border-radius: 18px; padding: 14px 16px; box-shadow: 0 8px 24px rgba(231,150,176,.1); }
 .hook-text { font-size: 16px; font-weight: 700; margin: 0 0 8px; line-height: 1.35; }
 .make-card { display: grid; gap: 12px; background: linear-gradient(120deg, #FDE3EB, #FFF4D6); }
+.hook-her { font-size: 13px; color: var(--muted); margin: -4px 0 8px; font-style: italic; }
+.tag.resp { background: #E2EFE4; color: #3F6B4C; }
