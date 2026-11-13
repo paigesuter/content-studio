@@ -128,6 +128,29 @@ export const BRAND_SEED = {
       "Seen from screenshots only. Add your own insights here when you check them",
     ],
   },
+  strategy: {
+    source: "Hook & trial-reel method inspired by @its.amyjames",
+    principles: [
+      "Hook about HER life, not my niche: her money, her future, the girl she wants to become",
+      "Make her think 'that's literally me' or 'that's who i'm becoming'",
+      "Use the 6 formats: age-based, lists, emotive quote, identity maxxing, algorithm call-out, strong language",
+      "Pair a hook with a simple real-life clip (5–7 second b-roll of my actual day)",
+      "Same clips, new hooks: duplicate a reel and swap only the hook to test which words stop the scroll",
+      "Post tests as trial reels so they reach people who don't follow me yet",
+      "First line of the caption is a second hook ('the how??? ↓', 'i almost didn't post this')",
+      "When one beats my average, remake it and change ONE thing, usually the hook. One reel is not data",
+      "If a hook promises 5 things, deliver all 5",
+    ],
+    herLife: [
+      "20–29, figuring out who she is and what her future looks like",
+      "saves 100 travel videos and books nothing (yet)",
+      "feels stuck in the same routine and secretly wants a bigger life",
+      "overthinks every decision and worries what people will think",
+      "loves clothes but is still working out her personal style",
+      "wants to be more confident and independent",
+      "wants to make money doing something creative",
+    ],
+  },
   goals: {
     // Private: filled in on your device only
     notes: "",

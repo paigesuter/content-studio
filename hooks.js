@@ -65,14 +65,61 @@ export const HOOKS = [
   { text: "this is what the other side of a scary decision looks like", p: "becoming", t: "voiceover", k: ["decision", "scary", "side", "other", "worth"] },
 ];
 
+// The 6 hook formats (method inspired by @its.amyjames), adapted with Paige examples.
+export const FORMATS = [
+  { id: "age", name: "Age-based", goal: "make her instantly think: \"she's talking to me.\"",
+    formula: "i'm [age]. if you're between [ages], [do / stop doing this] before [milestone].",
+    why: "A specific age range makes her recognise herself, and a deadline adds urgency." },
+  { id: "list", name: "Lists", goal: "give her a number and a reason to keep watching.",
+    formula: "[number] [unexpected word] signs you're [the change she wants].",
+    why: "The number promises an easy payoff and the odd word creates curiosity. If you promise 5, deliver 5 (in the video or caption)." },
+  { id: "emotive", name: "Emotive quote", goal: "sometimes the feeling IS the content.",
+    formula: "i lied. [unexpected confession]. [strong belief]. [identity statement].",
+    why: "Gives her a belief she wants to claim as her own. Made for shares. Pair with aesthetic b-roll + audio that matches the emotion." },
+  { id: "identity", name: "Identity maxxing", goal: "describe the woman she is, or is becoming.",
+    formula: "things i don't do anymore as a [specific identity].",
+    why: "The right girl recognises herself or the identity she wants. The wrong girl keeps scrolling. Perfect." },
+  { id: "callout", name: "Algorithm call-out", goal: "make finding your reel feel a little too accurate.",
+    formula: "if this found you, you're probably [hyper-specific habit, struggle or desire].",
+    why: "It feels like a personal call-out, not a generic tip." },
+  { id: "strong", name: "Strong language", goal: "sound like her bestie, not a marketing textbook.",
+    formula: "[bold, conversational phrase] i did to go from [before] to [after].",
+    why: "A slightly unhinged opener plus a result she wants = instant curiosity." },
+];
+
+HOOKS.push(
+  { text: "i'm 23. if you're 20 to 25 and dreaming about moving abroad, read this before you talk yourself out of it", p: "becoming", t: "age-based", f: "age", k: ["moved", "abroad", "move", "dream", "age", "23"] },
+  { text: "i'm 23. if you're in your early 20s, start doing these things before you're 25", p: "becoming", t: "age-based", f: "age", k: ["habits", "start", "20s", "age", "things"] },
+  { text: "if you're 22 and feel behind, this is what 23 looked like for me", p: "becoming", t: "age-based", f: "age", k: ["behind", "age", "life", "year"] },
+  { text: "5 weird signs you're about to outgrow your hometown", p: "becoming", t: "lists", f: "list", k: ["home", "hometown", "outgrow", "change", "signs"] },
+  { text: "4 unexpected things that changed when i moved to australia", p: "becoming", t: "lists", f: "list", k: ["moved", "australia", "changed", "things"] },
+  { text: "3 outfits that made me feel like a completely different person", p: "style", t: "lists", f: "list", k: ["outfit", "outfits", "different", "feel"] },
+  { text: "i lied. i'm not brave. i just couldn't stand the idea of staying the same", p: "becoming", t: "emotive quote", f: "emotive", k: ["brave", "same", "scared", "change"] },
+  { text: "i lied. i don't have it figured out. i'm doing it anyway", p: "becoming", t: "emotive quote", f: "emotive", k: ["figured", "anyway", "plan", "doing"] },
+  { text: "i lied. moving abroad wasn't a holiday. it was the hardest, best thing i've done", p: "becoming", t: "emotive quote", f: "emotive", k: ["moving", "abroad", "hard", "best"] },
+  { text: "things i don't do anymore as a girl who moved abroad alone", p: "becoming", t: "identity maxxing", f: "identity", k: ["moved", "alone", "abroad", "anymore"] },
+  { text: "things i stopped doing when i started dressing for the life i want", p: "style", t: "identity maxxing", f: "identity", k: ["dress", "dressing", "style", "stopped"] },
+  { text: "things i don't do anymore as a girl who shows up for herself (60 classes in)", p: "little", t: "identity maxxing", f: "identity", k: ["pilates", "class", "show", "showing", "promise"] },
+  { text: "if this found you, you've been 'about to move abroad' for two years", p: "becoming", t: "algorithm call-out", f: "callout", k: ["move", "abroad", "years", "thinking"] },
+  { text: "if this landed on your feed, you've probably saved 200 bali videos and booked nothing", p: "experiencing", t: "algorithm call-out", f: "callout", k: ["bali", "saved", "trip", "travel", "book"] },
+  { text: "if this found you, you're probably the friend who overthinks every single decision", p: "becoming", t: "algorithm call-out", f: "callout", k: ["overthink", "decision", "friend", "think"] },
+  { text: "stupid easy things i did to stop overthinking every decision", p: "becoming", t: "strong language", f: "strong", k: ["overthink", "decision", "easy", "stop"] },
+  { text: "the unhinged reason i left the uk with no plan (it worked)", p: "becoming", t: "strong language", f: "strong", k: ["uk", "left", "plan", "reason"] },
+  { text: "lazy girl outfit tricks i stole from studying fashion design", p: "style", t: "strong language", f: "strong", k: ["outfit", "fashion", "design", "tricks", "lazy"] },
+);
+
+// Caption first lines that work as a second hook (from the trial-reel method).
+export const CAPTION_OPENERS = ["the how??? ↓", "wait for number 3", "i almost didn't post this", "why did nobody tell me this", "save this for later", "this one's for the girl who…"];
+
 const norm = (t) => t.toLowerCase().replace(/[^a-z0-9']+/g, " ");
 
 // Picks the hooks that best fit the clip: words you actually said + the series pillar.
-export function suggestHooks(transcript, { pillar = null, n = 6, shuffleSeed = 0 } = {}) {
+export function suggestHooks(transcript, { pillar = null, n = 6, shuffleSeed = 0, mine = [], favs = [] } = {}) {
   const words = new Set(norm(transcript || "").split(/\s+/).filter((w) => w.length > 2));
-  const scored = HOOKS.map((h, i) => {
-    const hits = h.k.filter((k) => words.has(k)).length;
-    const score = hits * 3 + (pillar && h.p === pillar ? 2 : 0) + ((i * 7 + shuffleSeed * 13) % 10) / 10;
+  const pool = [...mine.map((h) => ({ ...h, k: h.k?.length ? h.k : norm(h.text).split(/\s+/).filter((w) => w.length > 3) })), ...HOOKS];
+  const scored = pool.map((h, i) => {
+    const hits = (h.k || []).filter((k) => words.has(k)).length;
+    const score = hits * 3 + (pillar && h.p === pillar ? 2 : 0) + (favs.includes(h.text) ? 2 : 0) + ((i * 7 + shuffleSeed * 13) % 10) / 10;
     return { ...h, score, hits };
   });
   return scored.sort((a, b) => b.score - a.score).slice(0, n);

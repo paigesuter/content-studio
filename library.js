@@ -118,7 +118,8 @@ export async function updateMedia(item) {
 
 // ---------- folders ----------
 
-export const DEFAULT_FOLDERS = ["Bali", "Australia", "Travel", "Fashion", "Pilates", "Daily vlogs", "Brand collabs", "Inspiration", "Brand assets"];
+export const DEFAULT_FOLDERS = ["Bali", "Australia", "Travel", "Fashion", "Pilates", "Daily vlogs", "B-roll bank", "Talking clips", "Me photos", "Brand collabs", "Inspiration", "Brand assets"];
+const ADDED_LATER = ["B-roll bank", "Talking clips", "Me photos"];
 
 export async function listFolders() {
   let folders = await db.all("folders");
@@ -126,6 +127,13 @@ export async function listFolders() {
     const t0 = Date.now();
     folders = DEFAULT_FOLDERS.map((name, i) => ({ id: uid() + i, name, created: new Date(t0 + i).toISOString() }));
     for (const f of folders) await db.put("folders", f);
+  } else {
+    // make sure newer default folders exist too
+    let t0 = Date.now();
+    for (const name of ADDED_LATER) if (!folders.some((f) => f.name === name)) {
+      const f = { id: uid(), name, created: new Date(t0++).toISOString() };
+      await db.put("folders", f); folders.push(f);
+    }
   }
   return folders.sort((a, b) => a.created.localeCompare(b.created));
 }

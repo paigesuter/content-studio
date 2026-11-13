@@ -9,6 +9,7 @@ import { getSeries, fillTemplate, logEpisode, TEXT_POSITIONS, seriesFonts, needs
 import { PAIRINGS as KIT_PAIRINGS, PALETTES as KIT_PALETTES } from "./kit.js";
 import { suggestHooks } from "./hooks.js";
 import { loadBrand } from "./brand.js";
+import { db as storeDb } from "./db.js";
 
 const $ = (id) => document.getElementById(id);
 const TEST = new URLSearchParams(location.search).has("test");
@@ -190,7 +191,17 @@ function gotWords(words) {
 // ---------- hook ideas: your hook bank + Ask Claude ----------
 let shuffleN = 0;
 const transcript = () => (state.plan?.words || []).map((w) => w.text).join(" ");
+let hookbank = { favs: [], mine: [] };
+storeDb.getValue("hookbank", null).then((h) => { if (h) hookbank = h; }).catch(() => {});
+const testPicks = new Set();
 function useHook(text, btn) {
+  if ($("testMode").checked) {
+    testPicks.has(text) ? testPicks.delete(text) : testPicks.add(text);
+    btn?.classList.toggle("picked", testPicks.has(text));
+    $("makeVersions").hidden = testPicks.size < 2;
+    $("makeVersions").textContent = `Make ${testPicks.size} versions (one per hook)`;
+    return;
+  }
   const t = text.replace(/\{n\}/g, series ? ep.n : "").replace(/\s{2,}/g, " ").trim();
   state.hook = t; $("hook").value = t;
   document.querySelectorAll(".idea.on").forEach((b) => b.classList.remove("on"));
@@ -207,7 +218,7 @@ function ideaButton(text, sub) {
 }
 function showHookIdeas() {
   $("askClaude").disabled = !state.analysis;
-  const list = suggestHooks(transcript(), { pillar: series?.pillar || null, n: 5, shuffleSeed: shuffleN });
+  const list = suggestHooks(transcript(), { pillar: series?.pillar || null, n: 6, shuffleSeed: shuffleN, mine: hookbank.mine, favs: hookbank.favs });
   $("ideasNote").textContent = state.words.length ? "From your hook bank, matched to what you said. Tap one to use it." : "From your hook bank. Tap one to use it.";
   $("hookIdeas").replaceChildren(...list.map((h) => ideaButton(h.text, h.t)));
 }
@@ -227,6 +238,8 @@ My pillars: ${b.pillars.map((p) => p.name).join(", ")}
 How I write:
 ${lines(b.voice.style)}
 Tone examples (learn the vibe, don't reuse): ${(b.voice.examples || []).join(" / ")}
+Her life (what my audience is thinking about): ${(b.strategy?.herLife || []).join("; ")}
+Hook strategy: ${(b.strategy?.principles || []).join("; ")}
 Never sound like: ${(b.voice.avoidTone || []).join(", ")}
 Banned phrases: ${(b.voice.bannedPhrases || []).join(", ")}
 ${(b.rules || []).length ? "Rules from my feedback:\n" + lines(b.rules) + "\n" : ""}
@@ -243,7 +256,7 @@ Reply with ONLY one JSON code block, exactly this shape:
  "captions": [{"style": "short & cheeky", "text": "..."}, {"style": "casual & funny", "text": "..."}, {"style": "reflective", "text": "..."}, {"style": "storytelling", "text": "..."}],
  "hashtags": ["only if they genuinely fit, else empty"]}
 \`\`\`
-Give 8 hooks. Hooks must relate to what I actually said. Lowercase is fine. No life-coach tone, no banned phrases, no excessive exclamation marks.`;
+Give 8 hooks using a mix of the 6 formats (age-based, list, emotive quote "i lied…", identity maxxing "things i don't do anymore as a…", algorithm call-out "if this found you…", strong language). Hook about HER life, not my niche. Make the first line of each caption a second hook (like "the how??? ↓" or "i almost didn't post this"). Hooks must relate to what I actually said. Lowercase is fine. No life-coach tone, no banned phrases, no excessive exclamation marks.`;
 }
 
 $("askClaude").onclick = async () => {
@@ -343,6 +356,52 @@ $("exportBtn").onclick = async () => {
     keepAwake(false);
   }
 };
+$("testMode").onchange = () => {
+  testPicks.clear();
+  document.querySelectorAll(".idea.picked").forEach((b) => b.classList.remove("picked"));
+  $("makeVersions").hidden = true;
+  setStatus($("testMode").checked ? "Tap 2–6 hooks to test, then Make versions." : "Captions ready ✓");
+};
+$("makeVersions").onclick = async () => {
+  const hooks = [...testPicks].slice(0, 6);
+  if (hooks.length < 2 || !state.plan?.keeps.length) return;
+  player.pause(); $("playBtn").hidden = false;
+  $("makeVersions").disabled = true; $("exportBtn").disabled = true;
+  const box = $("versionsBox");
+  box.replaceChildren();
+  const original = state.hook;
+  const files = [];
+  await keepAwake(true);
+  try {
+    for (let i = 0; i < hooks.length; i++) {
+      const row = document.createElement("div"); row.className = "version";
+      const label = document.createElement("span"); label.textContent = `${i + 1}. ${hooks[i]}: making… keep this screen open`;
+      row.append(label); box.append(row);
+      state.hook = hooks[i].replace(/\{n\}/g, series ? ep.n : "").trim();
+      const { blob, ext } = await exportVideo(video, getState, (p) => { label.textContent = `${i + 1}. ${hooks[i]}: ${Math.round(p * 100)}%`; });
+      const file = new File([blob], `hook-test-${i + 1}.${ext}`, { type: blob.type });
+      files.push(file);
+      label.textContent = `${i + 1}. ${hooks[i]} ✓`;
+      const a = document.createElement("a"); a.className = "btn"; a.textContent = "Download"; a.href = URL.createObjectURL(blob); a.download = file.name;
+      row.append(a);
+    }
+    if (navigator.canShare && navigator.canShare({ files })) {
+      const all = document.createElement("button"); all.className = "big-btn"; all.textContent = `Save all ${files.length} to Photos`;
+      all.onclick = async () => { try { await navigator.share({ files }); } catch {} };
+      box.append(all);
+    }
+    const tip = document.createElement("p"); tip.className = "small muted";
+    tip.textContent = "Post each one as a trial reel with the same sound. The one that wins tells you which words stop her scrolling.";
+    box.append(tip);
+  } catch (e) {
+    box.append(Object.assign(document.createElement("p"), { className: "small", textContent: "Something went wrong: " + e.message }));
+  } finally {
+    state.hook = original; $("hook").value = original || "";
+    $("makeVersions").disabled = false; $("exportBtn").disabled = false;
+    keepAwake(false);
+  }
+};
+
 $("saveBtn").onclick = async () => {
   try { await navigator.share({ files: [lastFile] }); } catch {}
 };

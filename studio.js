@@ -6,6 +6,7 @@ import { loadBrand, updateBrand, history, revert, addFeedback, loadKit, saveKit,
   registerCustomFonts, removeCustomFont, exportBackup, importBackup, resetBrand } from "./brand.js";
 import { PALETTES, PAIRINGS, googleFontsHref, activePalette, FONT_LIBRARY, fontKey } from "./kit.js";
 import { listSeries, saveSeries, deleteSeries, newSeries, fillTemplate, seriesFonts } from "./series.js";
+import { HOOKS, FORMATS, CAPTION_OPENERS } from "./hooks.js";
 import { importFiles, listMedia, getBlob, removeMedia, updateMedia, listFolders, addFolder, removeFolder,
   fmtDuration, fmtSize } from "./library.js";
 
@@ -527,6 +528,7 @@ const SECTIONS = [
   { id: "voice", title: "How I write", fields: [["voice.style", "My writing style", "list"], ["voice.examples", "Examples of my tone", "list"], ["voice.examplesNote", "Note", "text"], ["voice.avoidTone", "Never sound like", "list"], ["voice.bannedPhrases", "Banned phrases", "list"], ["voice.punctuation", "Punctuation & emojis", "text"]] },
   { id: "editing", title: "Editing & aesthetic", fields: [["editing.principles", "Editing principles", "list"], ["editing.defaultText", "Default text", "text"], ["editing.formats", "Formats", "text"], ["aesthetic", "Aesthetic", "list"]] },
   { id: "instagram", title: "From my Instagram", note: "What Claude learned from your profile, grid and series. Edit anything that's off.", fields: [["instagram.bio", "Bio", "textarea"], ["instagram.highlights", "Highlights", "list"], ["instagram.series", "My recurring series", "list"], ["instagram.textStyles", "How I use text on screen", "list"], ["instagram.visual", "Visual style", "list"], ["instagram.performance", "What performs", "list"]] },
+  { id: "strategy", title: "Hook strategy", note: "How hooks get written for you. Method inspired by @its.amyjames.", fields: [["strategy.principles", "Principles", "list"], ["strategy.herLife", "Her life (what she's thinking about)", "list"]] },
   { id: "rules", title: "Rules learned from my feedback", fields: [["rules", "Rules", "list"]] },
   { id: "goals", title: "Private goals & notes", note: "Stored only on this device, never in the app's public code.", fields: [["goals.notes", "Goals, numbers, plans, anything private", "textarea"]] },
 ];
@@ -692,7 +694,7 @@ VIEWS.brain = async () => [
   el("div", { class: "card", style: { background: "linear-gradient(135deg,#FDEEF3,#FFF8E1)" } },
     el("div", { class: "eyebrow" }, "my message"), el("p", { class: "quote", style: { margin: "6px 0 0" } }, S.brand.identity.message)),
   sectionCard(SECTIONS[0]), sectionCard(SECTIONS[1]), pillarsCard(), sectionCard(SECTIONS[2]), sectionCard(SECTIONS[3]),
-  sectionCard(SECTIONS[4]), sectionCard(SECTIONS[5]), feedbackCard(), sectionCard(SECTIONS[6]), sectionCard(SECTIONS[7]), await historyCard(),
+  sectionCard(SECTIONS[4]), sectionCard(SECTIONS[5]), sectionCard(SECTIONS[6]), feedbackCard(), sectionCard(SECTIONS[7]), sectionCard(SECTIONS[8]), await historyCard(),
 ];
 
 // ============================================================ BRAND KIT & SETTINGS
@@ -795,8 +797,94 @@ function soonView(title, em, intro, phase, items, extra = null) {
     el("div", { class: "card soon" }, el("span", { class: "tag" }, phase), el("ul", { class: "list", style: { marginTop: "10px" } }, items.map((i) => el("li", {}, i)))),
   ];
 }
-VIEWS.hooks = async () => soonView("Hook", "Bank", "Your personal hook bank, written in your voice and sorted into 15 categories.", "Coming in Phase 2",
-  ["Dozens of hooks tagged by pillar, video type, tone, platform and intended reaction", "Favourites, edit, add your own", "Hooks that match what you actually said in a clip", "Ask Claude for fresh hooks in your voice (free, via your Claude chat)"]);
+let hookFilter = "all";
+async function hookBank() { return (await dbValue("hookbank")) || { favs: [], mine: [] }; }
+async function saveHookBank(h) { await dbSet("hookbank", h); }
+
+VIEWS.hooks = async () => {
+  const bank = await hookBank();
+  const pillarName = (id) => S.brand.pillars.find((p) => p.id === id)?.name || "";
+  const all = [...bank.mine.map((h) => ({ ...h, mine: true })), ...HOOKS];
+  const list = all.filter((h) => hookFilter === "all" || (hookFilter === "fav" && bank.favs.includes(h.text)) || (hookFilter === "mine" && h.mine)
+    || h.p === hookFilter || h.f === hookFilter);
+  const chip = (id, label) => el("button", { class: "chip" + (hookFilter === id ? " on" : ""), onclick: () => { hookFilter = id; render(); } }, label);
+  const hookCard = (h) => {
+    const fav = bank.favs.includes(h.text);
+    return el("div", { class: "hook-card" },
+      el("p", { class: "hook-text" }, h.text),
+      el("div", { class: "row small" },
+        h.f ? el("span", { class: "tag pink" }, FORMATS.find((x) => x.id === h.f)?.name) : null,
+        h.t && !h.f ? el("span", { class: "tag" }, h.t) : null,
+        h.p ? el("span", { class: "tag" }, pillarName(h.p)) : null,
+        h.mine ? el("span", { class: "tag" }, "mine") : null,
+        el("span", { class: "spacer" }),
+        el("button", { class: "btn-ghost", onclick: async () => { toast((await copyText(h.text)) ? "Copied ✓" : "Couldn't copy"); } }, "Copy"),
+        el("button", { class: "btn-ghost", onclick: async () => {
+          bank.favs = fav ? bank.favs.filter((t) => t !== h.text) : [...bank.favs, h.text]; await saveHookBank(bank); render();
+        } }, fav ? "♥" : "♡"),
+        h.mine ? el("button", { class: "btn-ghost btn-danger", onclick: async () => { bank.mine = bank.mine.filter((x) => x.id !== h.id); await saveHookBank(bank); render(); } }, "Delete") : null));
+  };
+  const addBox = el("input", { type: "text", placeholder: "Write your own hook…" });
+  const addPillar = el("select", { style: { width: "auto" } }, S.brand.pillars.map((p) => el("option", { value: p.id }, p.name)));
+  const addFormat = el("select", { style: { width: "auto" } }, el("option", { value: "" }, "No format"), FORMATS.map((f) => el("option", { value: f.id }, f.name)));
+  return [
+    el("div", { class: "page-head row" }, el("div", {}, el("h1", {}, "Hook ", el("em", {}, "Bank")),
+      el("p", {}, "Hooks about HER life, written in your voice. Tap ♡ to favourite. Favourites and your own hooks show up in the editor too.")),
+      el("span", { class: "spacer" }),
+      el("button", { class: "btn-pink", onclick: () => askClaudeHooks(bank) }, "✧ Ask Claude for more")),
+    el("h2", { style: { margin: "6px 0 4px" } }, "The 6 hook formats"),
+    el("p", { class: "small muted", style: { marginTop: 0 } }, "Method inspired by @its.amyjames. Tap a format to see your hooks for it."),
+    el("div", { class: "format-grid" }, FORMATS.map((f, i) => el("button", { class: "format-card" + (hookFilter === f.id ? " on" : ""), onclick: () => { hookFilter = hookFilter === f.id ? "all" : f.id; render(); } },
+      el("span", { class: "format-n" }, `hook 0${i + 1}`),
+      el("b", { class: "format-name" }, f.name + "."),
+      el("i", { class: "format-goal" }, f.goal),
+      el("span", { class: "format-formula" }, f.formula),
+      el("span", { class: "format-why" }, f.why)))),
+    el("div", { class: "card", style: { marginTop: "18px" } },
+      el("h3", {}, "Caption first lines (a second hook)"),
+      el("div", { class: "chips", style: { marginTop: "8px" } }, CAPTION_OPENERS.map((c) => el("button", { class: "chip", onclick: async () => toast((await copyText(c)) ? "Copied ✓" : "Couldn't copy") }, c)))),
+    el("div", { class: "card" },
+      el("h3", {}, "Add your own"),
+      el("div", { class: "row", style: { marginTop: "8px" } }, addBox, addPillar, addFormat,
+        el("button", { class: "btn-pink", onclick: async () => {
+          if (!addBox.value.trim()) return;
+          bank.mine.unshift({ id: Date.now().toString(36), text: addBox.value.trim(), p: addPillar.value, f: addFormat.value || null, t: "my hook", k: [] });
+          await saveHookBank(bank); toast("Added ✓"); render();
+        } }, "Add"))),
+    el("div", { class: "chips scroll", style: { margin: "16px 0 12px" } },
+      chip("all", `All (${all.length})`), chip("fav", "♥ Favourites"), chip("mine", "My hooks"),
+      S.brand.pillars.map((p) => chip(p.id, p.name)), FORMATS.map((f) => chip(f.id, f.name))),
+    el("div", { class: "hook-list" }, list.map(hookCard)),
+  ];
+};
+
+function askClaudeHooks(bank) {
+  const b = S.brand;
+  const prompt = `I'm Paige (@paigesuterx). Write 15 NEW hooks for my Reels in my voice.
+
+ABOUT ME: ${b.identity.oneLiner} Message: ${b.identity.message}
+HER (my audience): ${b.audience.who} Biggest thought: "${b.audience.innerThought}"
+Her life: ${(b.strategy?.herLife || []).join("; ")}
+My pillars: ${b.pillars.map((p) => `${p.name} (${p.topics.slice(0, 5).join(", ")})`).join("; ")}
+How I write: ${(b.voice.style || []).join("; ")}
+Tone examples (don't reuse): ${(b.voice.examples || []).join(" / ")}
+Banned phrases: ${(b.voice.bannedPhrases || []).join(", ")}
+Hook strategy: ${(b.strategy?.principles || []).join("; ")}
+${(b.rules || []).length ? "Rules from my feedback: " + b.rules.join("; ") : ""}
+
+Use the 6 formats (age-based, list, emotive quote, identity maxxing, algorithm call-out, strong language), spread across my 4 pillars. Hook about HER life, not my niche. Max ~14 words each, lowercase is fine.
+Reply with ONLY one JSON code block:
+\`\`\`json
+{"hooks": [{"text": "...", "format": "age|list|emotive|identity|callout|strong", "pillar": "style|becoming|experiencing|little"}]}
+\`\`\``;
+  claudeSheet("Ask Claude for more hooks", prompt, async (data) => {
+    const hooks = (data.hooks || []).filter((h) => h && h.text);
+    hooks.forEach((h, i) => bank.mine.unshift({ id: Date.now().toString(36) + i, text: String(h.text), p: h.pillar || null, f: FORMATS.some((f) => f.id === h.format) ? h.format : null, t: "from Claude", k: [] }));
+    await saveHookBank(bank);
+    return hooks.length ? `Added ${hooks.length} hooks to "My hooks" ✓` : "No hooks found in that reply.";
+  });
+}
+
 VIEWS.inspo = async () => soonView("Inspiration", "Library", "Save reels, screenshots and edits you love, then recreate the feel with your own footage.", "Coming in Phase 4",
   ["Analysis of pacing, clip order, text placement, fonts and colour", "Labels & moodboards", "“Recreate this style” blueprints that assemble your clips"],
   el("div", { class: "card" }, el("h3", {}, "Start collecting now"), el("p", { class: "small muted" }, "Upload screen recordings and screenshots into your Inspiration folder. They'll be ready when this section arrives. You can also send them to me in our chat and I'll break them down."),

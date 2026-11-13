@@ -94,3 +94,9 @@ header.top .logo { margin-right: auto; margin-left: 14px; }
 .cap-card .cap-style { font-size: 12px; font-weight: 700; color: #D97A99; text-transform: uppercase; letter-spacing: .06em; }
 .cap-card p { margin: 6px 0; white-space: pre-wrap; }
 .res-h { margin: 14px 0 4px; font-size: 14px; }
+.test-box { margin-top: 12px; padding-top: 10px; border-top: 1px dashed #F3DCE3; }
+.test-box .toggle { align-items: flex-start; font-size: 14px; }
+.idea.picked { border-color: #3E2C30; background: #FFF4D6; }
+.idea.picked::before { content: "✓ "; color: #D97A99; font-weight: 800; }
+.version { display: flex; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid #F3DCE3; font-size: 14px; }
+.version span { flex: 1; }
