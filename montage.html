@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Studio">
+  <meta name="theme-color" content="#FFF4F7">
+  <link rel="apple-touch-icon" href="icon-180.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <title>Make a video · Paige Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="montage.css">
+</head>
+<body>
+<header class="mtop">
+  <a href="./#create" class="back">← Studio</a>
+  <div class="mtitle"><span class="script">Paige</span> make a video</div>
+  <div class="undo"><button id="undoBtn" disabled title="Undo">↶</button><button id="redoBtn" disabled title="Redo">↷</button></div>
+</header>
+
+<main class="mwrap">
+  <section class="stage">
+    <div class="frame"><canvas id="preview" width="540" height="960"></canvas></div>
+    <div class="transport"><button id="playBtn" class="play">▶</button><span id="timeLabel" class="small muted">0:00</span></div>
+    <p id="status" class="small muted center"></p>
+  </section>
+
+  <section class="side">
+    <div class="card timeline-card">
+      <div class="row-head"><h2>Timeline</h2><span id="totalLabel" class="small muted"></span></div>
+      <div class="tracks">
+        <div class="track"><span class="track-label">🎞</span><div id="trackVideo" class="track-items"></div></div>
+        <div class="track"><span class="track-label">Aa</span><div id="trackText" class="track-items"></div></div>
+        <div class="track"><span class="track-label">♫</span><div id="trackMusic" class="track-items"></div></div>
+      </div>
+      <div id="clipPanel" class="clip-panel"></div>
+    </div>
+
+    <div class="card">
+      <h2>Style</h2>
+      <div id="styleChips" class="chips scroll"></div>
+      <div id="episodeBox" class="episode" hidden></div>
+      <label class="field">Title / hook on screen <input id="titleIn" type="text" maxlength="90" placeholder="e.g. a very unproductive (perfect) day in bali"></label>
+      <div class="row-head"><span class="small muted">Hook ideas from your bank</span><button id="moreHooks" class="ghost">Shuffle</button></div>
+      <div id="hookIdeas" class="chips"></div>
+    </div>
+
+    <div class="card">
+      <h2>Pace &amp; transitions</h2>
+      <div class="chips">
+        <button class="chip" data-pace="cinematic">Cinematic (slower)</button>
+        <button class="chip" data-pace="smooth">Smooth</button>
+        <button class="chip" data-pace="snappy">Snappy</button>
+      </div>
+      <p class="small muted">Changing pace re-does the first edit (undo brings yours back).</p>
+      <div class="chips"><button class="chip" data-tr="fade">Smooth crossfade</button><button class="chip" data-tr="cut">Straight cuts</button></div>
+    </div>
+
+    <div class="card">
+      <h2>Sound</h2>
+      <div class="row"><button id="musicBtn">＋ Add music</button><span id="musicName" class="small muted">No music</span><button id="musicRemove" class="ghost" hidden>Remove</button></div>
+      <input id="musicIn" type="file" accept="audio/*,.mp3,.m4a,.wav" hidden>
+      <label class="field">Music volume <input id="musicVol" type="range" min="0" max="1" step="0.05" value="0.6"></label>
+      <label class="field">Clips' own sound <input id="clipVol" type="range" min="0" max="1" step="0.05" value="1"></label>
+      <p class="small muted">Tip: use a song you own, or add a trending sound in Instagram after saving (best for reach).</p>
+    </div>
+
+    <button id="exportBtn" class="big-btn">Make my video</button>
+    <div id="exportBox" hidden>
+      <div class="progress"><div id="exportBar"></div></div>
+      <p id="exportMsg" class="small muted"></p>
+      <div id="saveRow" class="row" hidden><button id="saveBtn" class="big-btn">Save to Photos</button><a id="dlLink" class="btn" download>Download</a></div>
+    </div>
+  </section>
+</main>
+
+<div id="picker" class="sheet" hidden>
+  <div class="sheet-inner">
+    <div class="row-head"><h2>Add clips</h2><button id="pickClose" class="ghost">Close</button></div>
+    <p class="small muted">Tap clips and photos in the order you want them.</p>
+    <div id="pickGrid" class="pick-grid"></div>
+    <button id="pickAdd" class="big-btn">Add 0</button>
+  </div>
+</div>
+
+<video id="vA" playsinline preload="auto" class="hidden-video"></video>
+<video id="vB" playsinline preload="auto" class="hidden-video"></video>
+<script type="module" src="montage.js"></script>
+</body>
+</html>

@@ -293,17 +293,34 @@ function seriesBg(sr) {
 }
 
 function pickEpisodeClip(sr) {
-  const videos = S.media.filter((m) => m.kind === "video");
-  const inFolder = sr.folder ? videos.filter((m) => m.folders?.includes(sr.folder)) : [];
-  const list = inFolder.length ? inFolder : videos;
+  const all = S.media.filter((m) => m.kind === "video" || m.kind === "photo");
+  const inFolder = sr.folder ? all.filter((m) => m.folders?.includes(sr.folder)) : [];
+  const list = inFolder.length ? inFolder : all;
+  const picked = [];
+  const go = el("button", { class: "btn-pink", disabled: true }, "🎬 Make episode");
+  const single = el("button", { disabled: true }, "Talking-clip editor (1 clip, captions)");
+  const update = () => {
+    go.disabled = !picked.length;
+    go.textContent = `🎬 Make episode${picked.length ? ` from ${picked.length} clip${picked.length > 1 ? "s" : ""}` : ""}`;
+    const v = picked.length === 1 && S.media.find((m) => m.id === picked[0])?.kind === "video";
+    single.disabled = !v;
+  };
+  go.onclick = () => { location.href = `montage.html?clips=${picked.join(",")}&series=${sr.id}`; };
+  single.onclick = () => { location.href = `edit.html?clip=${picked[0]}&series=${sr.id}`; };
   openSheet(
     el("div", { class: "card-head" }, el("h2", {}, `${sr.emoji} New episode`), el("button", { class: "btn-ghost", onclick: closeSheet }, "Close")),
-    el("p", { class: "small muted" }, `Pick the clip for ${sr.name} #${sr.next || 1}. Your saved template is applied automatically.`),
-    list.length ? el("div", { class: "media-grid" }, list.map((m) => tile(m, () => { location.href = `edit.html?clip=${m.id}&series=${sr.id}`; })))
-      : el("p", { class: "muted" }, "No videos yet."),
-    el("div", { class: "row", style: { marginTop: "14px" } },
-      el("button", { class: "btn-pink", onclick: () => { closeSheet(); pickUpload(sr.folder); } }, "＋ Upload new clips"),
-      inFolder.length && inFolder.length !== videos.length ? el("button", { onclick: () => { sr = { ...sr, folder: null }; pickEpisodeClip(sr); } }, "Show all videos") : null));
+    el("p", { class: "small muted" }, `Tap the clips for ${sr.name} #${sr.next || 1} in order. Your saved template is applied automatically.`),
+    list.length ? el("div", { class: "media-grid" }, list.map((m) => {
+      const t = tile(m, () => {
+        const i = picked.indexOf(m.id);
+        i >= 0 ? picked.splice(i, 1) : picked.push(m.id);
+        t.classList.toggle("sel", picked.includes(m.id));
+        update();
+      });
+      return t;
+    })) : el("p", { class: "muted" }, "No footage yet."),
+    el("div", { class: "row", style: { marginTop: "14px" } }, go, single,
+      el("button", { class: "btn-ghost", onclick: () => { closeSheet(); pickUpload(sr.folder); } }, "＋ Upload new")));
 }
 
 VIEWS.series = async () => {
@@ -446,7 +463,12 @@ VIEWS.footage = async () => {
       el("button", { class: "chip" + (!f.folder ? " on" : ""), onclick: () => setF({ folder: null }) }, "All folders"),
       S.folders.map((x) => el("button", { class: "chip" + (f.folder === x.id ? " on" : ""), onclick: () => setF({ folder: x.id }) }, x.name)),
       el("button", { class: "chip", onclick: async () => { const n = prompt("Folder name"); if (n?.trim()) { await addFolder(n.trim()); await refreshMedia(); render(); } } }, "＋ New folder")),
-    S.selecting ? el("div", { class: "card row" }, el("b", {}, `${S.selected.size} selected`), el("span", { class: "spacer" }), folderSel,
+    S.selecting ? el("div", { class: "card row" }, el("b", {}, `${S.selected.size} selected`), el("span", { class: "spacer" }),
+      el("button", { class: "btn-pink", disabled: !S.selected.size, onclick: () => {
+        const ids = [...S.selected]; // the order you tapped them
+        location.href = `montage.html?clips=${ids.join(",")}`;
+      } }, `🎬 Make a video${S.selected.size ? ` (${S.selected.size})` : ""}`),
+      folderSel,
       el("button", { class: "btn-danger", onclick: async () => {
         if (!S.selected.size || !confirm(`Remove ${S.selected.size} item(s) from the studio? Your originals in Photos stay safe.`)) return;
         for (const id of S.selected) await removeMedia(id);
@@ -508,11 +530,18 @@ const PRESETS = [
 ];
 VIEWS.create = async () => {
   const videos = S.media.filter((m) => m.kind === "video");
+  const draft = await dbValue("montageDraft");
   return [
     el("div", { class: "page-head" }, el("h1", {}, "Create & ", el("em", {}, "edit")),
-      el("p", {}, "Right now: the quick reel editor for one talking-to-camera clip (cuts pauses & mistakes, captions, looks, export). The multi-clip timeline and your signature presets arrive in Phase 3.")),
+      el("p", {}, "Several clips → one smooth video, or one talking clip with automatic captions.")),
+    el("div", { class: "card make-card" },
+      el("div", {}, el("h2", {}, "🎬 Make a video from several clips"),
+        el("p", { class: "small muted" }, "Pick clips & photos. It makes a smooth first edit (best bits, crossfades, gentle zooms) in your style. Then trim, reorder, add music and export.")),
+      el("div", { class: "row" },
+        el("button", { class: "btn-pink", onclick: () => { S.selecting = true; S.selected.clear(); location.hash = "#footage"; toast("Tap the clips you want, then 🎬 Make a video"); } }, "Choose clips"),
+        draft?.clips?.length ? el("a", { class: "btn", href: "montage.html" }, `Continue draft (${draft.clips.length} clips)`) : null)),
     el("div", { class: "card" },
-      el("div", { class: "card-head" }, el("h2", {}, "Quick reel: pick a talking clip"), el("button", { class: "btn-soft", onclick: () => pickUpload() }, "＋ Upload")),
+      el("div", { class: "card-head" }, el("h2", {}, "🎙 Talking clip: captions & cuts (one clip)"), el("button", { class: "btn-soft", onclick: () => pickUpload() }, "＋ Upload")),
       videos.length ? el("div", { class: "media-grid" }, videos.map((m) => tile(m, () => { location.href = `edit.html?clip=${m.id}`; })))
         : el("p", { class: "muted" }, "No videos yet. Upload one, or ", el("a", { href: "edit.html" }, "open the editor"), " and pick straight from Photos.")),
     el("h2", { style: { margin: "26px 0 12px" } }, "Your signature presets"),

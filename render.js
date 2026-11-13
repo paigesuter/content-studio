@@ -99,7 +99,7 @@ function drawCaptions(ctx, W, H, st, t) {
 
 // ---------- hook text ----------
 
-function drawHook(ctx, W, H, st, outT) {
+export function drawHook(ctx, W, H, st, outT) {
   const text = (st.hook || "").trim();
   if (!text) return;
   const style = st.look.hook.style;

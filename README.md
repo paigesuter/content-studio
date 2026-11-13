@@ -10,7 +10,7 @@ Open it at **https://paigesuter.github.io/content-studio/** and add it to your H
 | My Footage: library, folders, favourites, previews | ✅ Phase 1 |
 | Brand Brain: identity, audience, pillars, voice, feedback, history/undo, Ask Claude | ✅ Phase 1 |
 | Brand Kit & Settings: palettes, font pairings, your own fonts, approval, backup | ✅ Phase 1 |
-| Create / Edit: quick reel editor (one talking clip) with "My brand" look | ✅ (multi-clip timeline in Phase 3) |
+| Create / Edit: multi-clip video editor (timeline, crossfades, music, series templates) + talking-clip editor (captions) | ✅ |
 | Hook Bank, captions, content ideas, transcription intelligence | Phase 2 |
 | Timeline editor, presets, transitions, music, formats | Phase 3 |
 | Inspiration library, "Recreate this style" | Phase 4 |
@@ -23,6 +23,6 @@ Open it at **https://paigesuter.github.io/content-studio/** and add it to your H
 - This repo is public (free hosting), so it only contains public-facing brand info. Private notes live on your device.
 
 ## Files
-`index.html` + `studio.js` + `studio.css`: the studio · `edit.html` + `app.js` + `style.css`: quick reel editor ·
+`index.html` + `studio.js` + `studio.css`: the studio · `montage.html` + `montage.js` + `montage.css`: multi-clip editor · `edit.html` + `app.js` + `style.css`: quick reel editor ·
 `brand-seed.js`: starting Brand Brain · `kit.js`: palettes & fonts · `brand.js`: brand storage & history ·
 `library.js`: footage library · `db.js`: on-device storage · `engine.js`/`render.js`/`looks.js`/`listen-worker.js`: editing engine.
