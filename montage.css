@@ -87,3 +87,12 @@ html, body { overflow-x: hidden; }
 .tl-clip.speech { box-shadow: inset 0 -4px 0 #E796B0; }
 .tl-bar.caps { background: #FDE3EB; color: #9A4763; margin-left: 4px; }
 #trackText { gap: 0; }
+.plan { margin-top: 12px; background: #fff; border-radius: 16px; padding: 12px; border: 1px solid var(--line); }
+.plan h3 { margin: 0 0 4px; }
+.plan-step { border-top: 1px dashed #F3DCE3; padding: 8px 0; }
+.plan-head { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+.plan-role { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: #D97A99; }
+.plan-step.removed .plan-role { color: var(--muted); }
+.script-line { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px; margin: 6px 0; font-size: 15px; }
+.script-line.broll { color: var(--muted); font-size: 13px; }
+.script-line.warn { border-color: #F2B84B; background: #FFF8E6; }

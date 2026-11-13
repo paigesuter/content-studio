@@ -37,8 +37,9 @@
         <h3 style="margin-top:10px">✧ Make it make sense</h3>
         <label class="field">What's this video about? <input id="goalIn" type="text" placeholder="e.g. why I moved to Australia with no plan"></label>
         <button id="askStory" class="claude-btn">✧ Ask Claude to edit the story</button>
-        <p class="small muted">Claude reads every sentence from every clip and puts the best ones in the order that makes sense, with b-roll in between.</p>
+        <p class="small muted">Claude is the content editor: it reads everything you said, keeps only the most valuable words and builds hook → context → value → ending. The app then cuts your footage to exactly those words.</p>
       </div>
+      <div id="planBox" class="plan" hidden></div>
     </div>
 
     <div class="card timeline-card">
@@ -110,6 +111,15 @@
     <textarea id="replyBox" class="replybox" placeholder="Paste Claude's reply here"></textarea>
     <button id="applyReply" class="big-btn">Build my edit</button>
     <p id="replyMsg" class="small muted"></p>
+  </div>
+</div>
+
+<div id="checkSheet" class="sheet" hidden>
+  <div class="sheet-inner">
+    <div class="row-head"><h2>Before I export: does it flow?</h2><button id="checkClose" class="ghost">Close</button></div>
+    <div id="checkBody"></div>
+    <button id="checkGo" class="big-btn">Reads well, make my video</button>
+    <button id="checkFix" class="claude-btn">✧ Fix it with Claude</button>
   </div>
 </div>
 

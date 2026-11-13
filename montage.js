@@ -38,10 +38,10 @@ let groups = [];
 let selected = 0;
 const undoStack = [], redoStack = [];
 
-const snapshot = () => JSON.stringify({ sources: P.sources, clips: P.clips, title: P.title, pace: P.pace, transition: P.transition, punch: P.punch, match: P.match,
+const snapshot = () => JSON.stringify({ plan: P.plan, sources: P.sources, clips: P.clips, title: P.title, pace: P.pace, transition: P.transition, punch: P.punch, match: P.match,
   clipVol: P.clipVol, musicVol: P.musicVol, captions: P.captions, goal: P.goal });
 function remember() { undoStack.push(snapshot()); if (undoStack.length > 60) undoStack.shift(); redoStack.length = 0; updateUndo(); }
-function restore(s) { Object.assign(P, JSON.parse(s)); selected = Math.max(0, Math.min(selected, P.clips.length - 1)); $("titleIn").value = P.title; refresh(); }
+function restore(s) { P.plan = null; Object.assign(P, JSON.parse(s)); setTimeout(renderPlan); selected = Math.max(0, Math.min(selected, P.clips.length - 1)); $("titleIn").value = P.title; refresh(); }
 function updateUndo() { $("undoBtn").disabled = !undoStack.length; $("redoBtn").disabled = !redoStack.length; }
 $("undoBtn").onclick = () => { if (!undoStack.length) return; redoStack.push(snapshot()); restore(undoStack.pop()); updateUndo(); };
 $("redoBtn").onclick = () => { if (!redoStack.length) return; undoStack.push(snapshot()); restore(redoStack.pop()); updateUndo(); };
@@ -192,6 +192,8 @@ function autoEdit() {
     }
   });
   P.clips = items;
+  P.plan = null;
+  if ($("planBox")) $("planBox").hidden = true;
 }
 
 function speechSummary() {
@@ -330,37 +332,125 @@ async function understand(auto = false) {
   }
 }
 
+// ---------------- the edit plan (what Claude decided) ----------------
+function renderPlan() {
+  const box = $("planBox");
+  if (!P.plan?.steps?.length) { box.hidden = true; return; }
+  const raw = P.sources.reduce((a, id) => a + (media.get(id)?.meta.duration || 0), 0);
+  const ROLE = { hook: "Opening hook", context: "Context", value: "Value", payoff: "Ending" };
+  box.replaceChildren(
+    el("h3", {}, "Edit plan"),
+    el("p", { class: "small" }, el("b", {}, `Original footage ${mmss(raw)} → final edit ${mmss(timing().total)}`), P.plan.topic ? ` · ${P.plan.topic}` : ""),
+    ...P.plan.steps.map((st) => {
+      const id = P.sources[st.clip.charCodeAt(0) - 65], tr = id && transcripts.get(id);
+      const first = tr?.sentences.find((x) => x.i === Number(String(st.sentences[0] ?? "").replace(/\D/g, "")));
+      const said = st.keep || (tr ? st.sentences.map((n) => tr.sentences.find((x) => x.i === Number(String(n).replace(/\D/g, "")))?.text).filter(Boolean).join(" ") : "");
+      return el("div", { class: "plan-step" },
+        el("div", { class: "plan-head" }, el("span", { class: "plan-role" }, ROLE[st.role] || (said ? "Keep" : "B-roll")), el("span", { class: "small muted" }, `clip ${st.clip}${first ? " · " + mmss(first.start) : ""}`)),
+        said ? el("div", { class: "said" }, `“${said.split(/\s+/).filter((w) => !SOUNDS.has(bare(w))).join(" ")}”`) : null,
+        st.why ? el("div", { class: "small muted" }, st.why) : null);
+    }),
+    P.plan.removed.length ? el("div", { class: "plan-step removed" }, el("span", { class: "plan-role" }, "Removed"), ...P.plan.removed.map((r) => el("div", { class: "small" }, `${r.what || ""}: ${r.why || ""}`))) : null,
+    P.plan.check ? el("p", { class: "small muted" }, `Claude's read-through: ${P.plan.check}`) : null);
+  box.hidden = false;
+}
+
+// The rule: never export without checking the edited sentences flow when played back.
+// Reads the finished script back exactly as it will play and flags anything that won't make sense.
+function flowCheck() {
+  const pieces = [];
+  P.clips.forEach((c, i) => {
+    if (!c.speech) { pieces.push({ i, broll: true }); return; }
+    const words = dropFillers(tidyTimings(transcripts.get(c.mediaId)?.words || [])).filter((w) => { const m = (w.start + w.end) / 2; return m >= c.inT && m <= c.inT + c.len; });
+    pieces.push({ i, text: words.map((w) => w.text).join(" ") });
+  });
+  const said = pieces.filter((p) => !p.broll && p.text);
+  const issues = [];
+  const toks = (t) => bare(t).length ? t.toLowerCase().replace(/[^a-z' ]/g, " ").split(/\s+/).filter((w) => w.length > 2) : [];
+  said.forEach((p, k) => {
+    const words = p.text.trim().split(/\s+/);
+    const firstW = bare(words[0] || "");
+    const prev = said[k - 1];
+    const prevEnds = !prev || /[.!?…]$/.test(prev.text.trim());
+    if (k === 0 && ["and", "but", "because", "which", "also", "that"].includes(firstW)) p.flag = "Opens mid-thought (starts with “" + words[0] + "”).";
+    else if (k === 0 && words.length > 30) p.flag = "Long first line: the hook might take too long to land.";
+    else if (prev && !prevEnds && p.i !== prev.i + 1 && P.clips[p.i].mediaId !== P.clips[prev.i].mediaId) p.flag = "The line before ends mid-sentence, then jumps to a different clip.";
+    else if (words.length <= 2 && !/[.!?]$/.test(p.text.trim())) p.flag = "Very short fragment: may not make sense on its own.";
+    if (!p.flag) {
+      const mine = toks(p.text);
+      const dup = said.slice(0, k).find((q) => { const Q = new Set(toks(q.text)); const c = mine.filter((w) => Q.has(w)).length; return mine.length >= 4 && c / mine.length >= 0.7; });
+      if (dup) p.flag = "Repeats an idea that's already been said.";
+    }
+    if (p.flag) issues.push(p);
+  });
+  const total = timing().total;
+  return { pieces, said, issues, total };
+}
+function showFlowCheck() {
+  return new Promise((resolve) => {
+    const r = flowCheck();
+    const sheet = $("checkSheet");
+    $("checkBody").replaceChildren(
+      el("p", { class: "small" }, r.issues.length ? `I read it through: ${r.issues.length} thing${r.issues.length > 1 ? "s" : ""} might not flow. Have a look:` : "I read it through as one script and it flows. Here's exactly what it will say:"),
+      el("p", { class: "small muted" }, `Length ${mmss(r.total)}${r.total > 90 ? " (over 90s: could it be tighter?)" : ""}`),
+      ...r.pieces.map((p) => p.broll ? el("div", { class: "script-line broll" }, "🎞 b-roll") : el("div", { class: "script-line" + (p.flag ? " warn" : "") }, p.text || "(no words)", p.flag ? el("div", { class: "small" }, "⚠️ " + p.flag) : null)));
+    sheet.hidden = false;
+    $("checkGo").onclick = () => { sheet.hidden = true; resolve(true); };
+    $("checkFix").onclick = () => { sheet.hidden = true; resolve(false); $("askStory").click(); };
+    $("checkClose").onclick = () => { sheet.hidden = true; resolve(false); };
+  });
+}
+
 // ---------------- Ask Claude to edit the story ----------------
 const letter = (i) => String.fromCharCode(65 + i);
+const mmss = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
 async function storyPrompt() {
   const b = await loadBrand();
+  let rawTotal = 0;
   const lines = P.sources.map((id, i) => {
     const m = media.get(id)?.meta;
     if (!m) return "";
-    if (isSpeech(id)) return `CLIP ${letter(i)} (talking, ${Math.round(m.duration)}s):\n` + transcripts.get(id).sentences.map((s) => `  ${letter(i)}${s.i}: "${s.text}" (${(s.end - s.start).toFixed(1)}s)`).join("\n");
+    rawTotal += m.duration || 0;
+    if (isSpeech(id)) return `CLIP ${letter(i)} (talking, ${mmss(m.duration || 0)} long):\n` + transcripts.get(id).sentences.map((s) => `  ${letter(i)}${s.i} [${mmss(s.start)}]: "${s.text}"`).join("\n");
     return `CLIP ${letter(i)}: ${m.kind === "photo" ? "photo" : `b-roll video, ${Math.round(m.duration)}s, no talking`}`;
   }).join("\n");
-  return `I'm Paige (@paigesuterx). I filmed these clips for ONE video and need you to edit them so it flows and makes sense.
+  return `You are an expert short-form video editor and storytelling strategist (Instagram Reels / TikTok). You are the CONTENT EDITOR: you decide what's said and in what order. My app is the TIMELINE EDITOR: it will cut my real footage to exactly the words you choose. Edit for VALUE, not just length. Think like an editor, not a silence remover.
 
-WHAT I'M TRYING TO MAKE: ${P.goal || "(work it out from what I say)"}
+I'm Paige (@paigesuterx). Raw footage: ${mmss(rawTotal)} in total.
+WHAT THIS VIDEO IS ABOUT: ${P.goal || "(work it out from what I say)"}
 ${series ? `It's part of my "${series.name}" series.` : ""}
 ${herBlock(b)}
 My voice: ${(b.voice.style || []).slice(0, 4).join("; ")}
 
-THE CLIPS (sentences are numbered like A1, A2):
+THE TRANSCRIPT (every sentence, numbered like A1, with where it starts):
 ${lines}
 
+HOW TO EDIT
+1. Read ALL of it first. Work out the topic, the message, the key points, the strongest lines, which sentences need others for context, and what's repeated, filler or rambling.
+2. Cut the fluff ruthlessly: long intros, unnecessary context, repeated explanations, sentences that go nowhere, backtracking, saying the same point twice, greetings/sign-offs, filler ("um", "like", "you know", "literally", "so yeah", "I don't know"). Don't keep a sentence just because I said it. If a sentence has one valuable part, keep only that part with "keep".
+3. Restructure for the best story. The original order is NOT sacred: pull the strongest line from anywhere to open, move context earlier, bring related points together, combine two sections that say the same thing by keeping the best sentences of each.
+4. Build a narrative where it fits: HOOK (strongest/most relatable line, reason to keep watching) → CONTEXT (just enough) → VALUE (the insight/experience/lesson) → PAYOFF (strongest conclusion/takeaway). Don't force it if another shape is stronger.
+5. Edit for retention: every sentence earns its place, strong first seconds, no dead space, but don't cut so hard I sound robotic.
+6. Keep MY personality: natural expressions, humour, real opinions. Not scripted, corporate or motivational.
+7. ONLY use words I actually said. Never invent, reword, or take words out of context to change my meaning.
 ${HER_RULES}
-Build the edit for HER: open with the line that makes her think "that's literally me", keep the parts that are useful or relatable to her life, and end on what it means for her.
-Edit it like a good editor: keep ONLY the most valuable words. Pick the best sentences in the order that tells the story clearly; cut repeats, rambling, throat-clearing ("oh", "so yeah", "okay so", "I don't know"), mistakes and anything that doesn't fit. If only part of a sentence is good, keep just that part with "keep" (copy those words exactly, in order, from the sentence). Every line in the final edit must make sense on its own and lead into the next. You can reorder sentences and clips, and place b-roll/photos between sentences (or at the start/end) to break up talking. Aim for under ~60 seconds unless the story needs more. Open with the strongest line.
+8. QUALITY CONTROL before you reply: read your final edit top to bottom as one script. Does it open strong? Does every line add something? Does it make sense with no missing context? Any repeated ideas? Does it flow? Is the ending intentional? Could anything else go? Fix it before replying.
 
 Reply with ONLY one JSON code block:
 \`\`\`json
 {"title": "short on-screen hook about HER, in my voice",
- "edit": [{"clip": "A", "sentences": [2]}, {"clip": "A", "sentences": [3], "keep": "the exact words to keep from A3"}, {"clip": "C"}, {"clip": "B", "sentences": [1]}],
- "why": "one line on the story you built"}
+ "topic": "one line: what this video is really about",
+ "edit": [
+  {"role": "hook", "clip": "A", "sentences": [7], "keep": "exact words to keep (optional, copied in order from those sentences)", "why": "strongest statement, moved to the start"},
+  {"role": "context", "clip": "A", "sentences": [2]},
+  {"clip": "C"},
+  {"role": "value", "clip": "B", "sentences": [3, 4], "why": "combines the two places I made this point"},
+  {"role": "payoff", "clip": "B", "sentences": [9], "why": "strong concluding thought, moved to the end"}
+ ],
+ "removed": [{"what": "A1–A4 [0:00–0:22]", "why": "long intro, repeated explanation"}],
+ "check": "one line: your read-through of the final script"}
 \`\`\`
-(For b-roll or photos just give the clip letter. Use "keep" only with one sentence at a time.)`;
+(For b-roll or photos give just the clip letter: they're placed between lines to break up talking. "keep" can span consecutive sentences listed together.)`;
 }
 $("askStory").onclick = async () => {
   P.goal = $("goalIn").value.trim();
@@ -381,7 +471,8 @@ $("applyReply").onclick = () => {
   const ok = applyStory(data);
   if (!ok) { $("replyMsg").textContent = "Couldn't find an edit in that reply."; return; }
   $("claudeSheet").hidden = true;
-  $("flowStatus").textContent = `✧ Claude's edit: ${data.why || "story rebuilt"}`;
+  $("flowStatus").textContent = `✧ Claude's edit is in. Here's the plan:`;
+  renderPlan();
 };
 
 function applyStory(data) {
@@ -393,11 +484,11 @@ function applyStory(data) {
     if (!id || !media.has(id)) return;
     if (isSpeech(id) && Array.isArray(e.sentences) && e.sentences.length) {
       const tr = transcripts.get(id);
-      e.sentences.forEach((n) => {
-        const s = tr.sentences.find((x) => x.i === Number(String(n).replace(/\D/g, "")));
-        if (!s) return;
+      const listed = e.sentences.map((n) => tr.sentences.find((x) => x.i === Number(String(n).replace(/\D/g, "")))).filter(Boolean);
+      const spans = e.keep && listed.length ? [{ start: Math.min(...listed.map((x) => x.start)), end: Math.max(...listed.map((x) => x.end)) }] : listed;
+      spans.forEach((s) => {
         let range = [s.start - 0.01, s.end + 0.01];
-        if (e.keep && e.sentences.length === 1) {
+        if (e.keep) {
           // find the words Claude chose inside this sentence
           const inS = tr.words.filter((w) => w.start >= s.start - 0.01 && w.end <= s.end + 0.01);
           const want = String(e.keep).split(/\s+/).map(bare).filter(Boolean);
@@ -418,6 +509,8 @@ function applyStory(data) {
   if (!items.length) return false;
   remember();
   P.clips = items;
+  P.plan = { topic: data.topic || "", why: data.why || "", check: data.check || "", removed: Array.isArray(data.removed) ? data.removed.slice(0, 12) : [],
+    steps: entries.map((e) => ({ role: e.role || "", clip: String(e.clip || "").toUpperCase(), sentences: e.sentences || [], keep: e.keep || "", why: e.why || "" })) };
   if (data.title) { P.title = String(data.title); $("titleIn").value = P.title; }
   selected = 0;
   refresh();
@@ -1002,6 +1095,7 @@ $("exportBtn").onclick = async () => {
   if (!P.clips.length) return;
   if (listening) { $("status").textContent = "Still listening to your clips. Make my video will work as soon as that's done."; return; }
   stop();
+  if (P.sources.some(isSpeech) && !(await showFlowCheck())) return;
   await unlock();
   $("exportBox").hidden = false; $("saveRow").hidden = true;
   $("exportBtn").disabled = true;
@@ -1073,6 +1167,7 @@ $("saveBtn").onclick = async () => { try { await navigator.share({ files: [lastF
   else if (hasVideo) setTimeout(() => understand(true), 300);   // start listening straight away
   $("storyBox").hidden = !P.sources.some(isSpeech);
   $("goalIn").value = P.goal || "";
+  renderPlan();
   markChips();
   $("clipVol").value = P.clipVol; $("musicVol").value = P.musicVol;
   await renderStyleChips();
