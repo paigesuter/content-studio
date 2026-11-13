@@ -4,8 +4,8 @@ const dbValue = (k) => db.getValue(k, null);
 const dbSet = (k, v) => db.setValue(k, v);
 import { loadBrand, updateBrand, history, revert, addFeedback, loadKit, saveKit, addCustomFont,
   registerCustomFonts, removeCustomFont, exportBackup, importBackup, resetBrand } from "./brand.js";
-import { PALETTES, PAIRINGS, googleFontsHref, activePalette } from "./kit.js";
-import { listSeries, saveSeries, deleteSeries, newSeries, fillTemplate } from "./series.js";
+import { PALETTES, PAIRINGS, googleFontsHref, activePalette, FONT_LIBRARY, fontKey } from "./kit.js";
+import { listSeries, saveSeries, deleteSeries, newSeries, fillTemplate, seriesFonts } from "./series.js";
 import { importFiles, listMedia, getBlob, removeMedia, updateMedia, listFolders, addFolder, removeFolder,
   fmtDuration, fmtSize } from "./library.js";
 
@@ -260,19 +260,28 @@ VIEWS.home = async () => {
 let seriesDraft = null;
 
 function seriesFrame(sr, bgUrl, vals = {}) {
-  const pairing = PAIRINGS.find((p) => p.id === sr.pairing) || PAIRINGS[0];
+  const fonts = seriesFonts(sr, PAIRINGS);
   const pal = (PALETTES.find((p) => p.id === sr.palette) || PALETTES[0]).colors;
   const f = (x, extra = {}) => ({ fontFamily: `"${x.family}"`, fontWeight: x.weight || 400, fontStyle: x.italic ? "italic" : "normal", ...extra });
-  const top = { top: "13%", middle: "38%", bottom: "64%" }[sr.position] || "13%";
+  const top = { top: "11%", middle: "36%", bottom: "62%" }[sr.position] || "11%";
   const sample = { n: sr.next || 1, word: vals.word ?? "strong", place: vals.place ?? "uluwatu" };
-  const title = fillTemplate(sr.title, sr, sample);
+  let title = fillTemplate(sr.title, sr, sample);
+  if (sr.titleCase === "upper") title = title.toUpperCase(); else if (sr.titleCase === "lower") title = title.toLowerCase();
   const sub = fillTemplate(sr.subtitle, sr, sample);
+  const color = { pink: pal.pink, butter: pal.butter, white: pal.text }[sr.titleColor] || pal.text;
+  const size = { m: 0.8, l: 1, xl: 1.3 }[sr.titleSize] || 1;
+  const titleNode = (sr.layout === "stagger")
+    ? (() => { const [first, ...rest] = title.split(/\s+/); return el("div", { class: "sf-title stagger", style: { "--fs": size } },
+        el("span", { style: f({ ...fonts.title, italic: true }, { color }) }, first), el("span", { style: f({ ...fonts.title, italic: false }, { color }) }, rest.join(" "))); })()
+    : el("div", { class: "sf-title", style: f(fonts.title, { color, "--fs": size }) }, title);
+  const subNode = !sub ? null
+    : sr.subStyle === "pill" ? el("span", { class: "sf-sub pill", style: f(fonts.sub, { background: pal.pink, color: pal.deep }) }, sub)
+    : sr.subStyle === "script" ? el("span", { class: "sf-sub script", style: f(fonts.sub, { color: pal.text }) }, sub)
+    : el("span", { class: "sf-sub small", style: f(fonts.sub, { color: pal.text }) }, sub);
   return el("div", { class: "frame916 series-frame", style: bgUrl ? { backgroundImage: `url(${bgUrl})` } : {} },
     el("div", { class: "shade" }),
-    el("div", { class: "sf-text", style: { top } },
-      el("div", { class: "sf-title", style: f(pairing.title, { color: pal.text }) }, title),
-      sub ? el("span", { class: "sf-sub", style: f(pairing.primary, { background: pal.pink, color: pal.deep }) }, sub) : null),
-    sr.captions ? el("div", { class: "t-cap", style: f(pairing.primary, { color: pal.text }) }, "honestly this ", el("b", { style: { color: pal.butter } }, "changed"), " everything") : null);
+    el("div", { class: "sf-text", style: { top } }, titleNode, subNode),
+    sr.captions ? el("div", { class: "t-cap", style: f({ family: "DM Sans", weight: 600 }, { color: pal.text }) }, "honestly this ", el("b", { style: { color: pal.butter } }, "changed"), " everything") : null);
 }
 
 function seriesBg(sr) {
@@ -306,7 +315,7 @@ VIEWS.series = async () => {
       el("button", { class: "btn-pink", onclick: () => { seriesDraft = newSeries(); render(); } }, "＋ New series")),
     el("div", { class: "series-grid" }, list.map((sr) => {
       const pal = PALETTES.find((p) => p.id === sr.palette) || PALETTES[0];
-      const pairing = PAIRINGS.find((p) => p.id === sr.pairing) || PAIRINGS[0];
+      const fonts = seriesFonts(sr, PAIRINGS);
       const count = sr.episodes?.length || 0;
       const progress = sr.total ? Math.min(100, Math.round((count / sr.total) * 100)) : null;
       return el("div", { class: "card series-card" },
@@ -319,7 +328,7 @@ VIEWS.series = async () => {
             el("span", { class: "tag" }, `next: #${sr.next || 1}`)),
           progress != null ? el("div", { class: "progress" }, el("div", { style: { width: `${progress}%` } })) : null,
           swatchRow(pal, { labels: false }),
-          el("p", { class: "small", style: { margin: "8px 0 12px" } }, el("b", {}, pairing.name), ` · ${pairing.title.family} + ${pairing.primary.family}`),
+          el("p", { class: "small", style: { margin: "8px 0 12px" } }, el("b", {}, fonts.title.family), fonts.sub && sr.subtitle ? ` + ${fonts.sub.family}` : ""),
           el("div", { class: "row" },
             el("button", { class: "btn-pink", onclick: () => pickEpisodeClip(sr) }, "＋ New episode"),
             el("button", { onclick: () => { seriesDraft = JSON.parse(JSON.stringify(sr)); render(); } }, "Edit template")),
@@ -343,6 +352,16 @@ function seriesEditor(d) {
     n.onchange = () => { d[key] = n.value === "true" ? true : n.value === "false" ? false : n.value; refresh(); };
     return n;
   };
+  if (!d.fonts?.title) d.fonts = seriesFonts(d, PAIRINGS);
+  const fontSelect = (role) => {
+    const cur = fontKey(d.fonts[role]);
+    const custom = S.fonts.map((f) => ({ label: `${f.family.replace("Custom ", "")} (your font)`, family: f.family, weight: 400 }));
+    const opts = [...FONT_LIBRARY, ...custom];
+    if (!opts.some((o) => fontKey(o) === cur)) opts.unshift({ label: d.fonts[role].family, ...d.fonts[role] });
+    const n = el("select", {}, opts.map((o) => el("option", { value: fontKey(o), selected: fontKey(o) === cur }, o.label)));
+    n.onchange = () => { const o = opts.find((x) => fontKey(x) === n.value); d.fonts = { ...d.fonts, [role]: { family: o.family, weight: o.weight, italic: !!o.italic } }; refresh(); };
+    return n;
+  };
   const choice = (key, items, label) => el("div", { class: "chips scroll" }, items.map((it) => el("button", {
     class: "chip" + (d[key] === it.id ? " on" : ""), onclick: (e) => { d[key] = it.id; e.currentTarget.parentNode.querySelectorAll(".chip").forEach((c) => c.classList.remove("on")); e.currentTarget.classList.add("on"); refresh(); } }, label(it))));
   return [
@@ -363,11 +382,21 @@ function seriesEditor(d) {
           el("label", { class: "field" }, "Title", input("title", { ph: "e.g. pilates class {n}/{total}" })),
           el("label", { class: "field" }, "Little label underneath (optional)", input("subtitle", { ph: "e.g. {date} · {word}" })),
           el("div", { class: "grid cols-3" },
+            el("label", { class: "field" }, "Title colour", select("titleColor", [["white", "White"], ["pink", "Pink"], ["butter", "Butter"]])),
+            el("label", { class: "field" }, "Capitals", select("titleCase", [["none", "As typed"], ["upper", "ALL CAPS"], ["lower", "all lowercase"]])),
+            el("label", { class: "field" }, "Title size", select("titleSize", [["m", "Medium"], ["l", "Large"], ["xl", "Extra large"]])),
+            el("label", { class: "field" }, "Layout", select("layout", [["stack", "Centred"], ["stagger", "Staggered (italic first word)"]])),
+            el("label", { class: "field" }, "Label style", select("subStyle", [["script", "White script"], ["small", "Small white text"], ["pill", "On a pink label"]])),
             el("label", { class: "field" }, "Position", select("position", [["top", "Top"], ["middle", "Middle"], ["bottom", "Bottom"]])),
             el("label", { class: "field" }, "Show title", select("showTitle", [["start", "First 3 seconds"], ["whole", "Whole video"]])),
             el("label", { class: "field" }, "Captions", select("captions", [[true, "On"], [false, "Off"]])))),
         el("div", { class: "card" }, el("h2", {}, "Colours"), choice("palette", PALETTES, (p) => p.name)),
-        el("div", { class: "card" }, el("h2", {}, "Fonts"), choice("pairing", PAIRINGS, (p) => p.name)),
+        el("div", { class: "card" }, el("h2", {}, "Fonts"),
+          el("div", { class: "grid cols-2" },
+            el("label", { class: "field" }, "Title font", fontSelect("title")),
+            el("label", { class: "field" }, "Label font", fontSelect("sub"))),
+          el("p", { class: "small muted" }, "Or start from one of your Brand Kit pairings:"),
+          el("div", { class: "chips scroll" }, PAIRINGS.map((p) => el("button", { class: "chip", onclick: () => { d.fonts = { title: p.title, sub: p.primary }; render(); } }, p.name)))),
         el("div", { class: "card" }, el("h2", {}, "Editing"),
           el("div", { class: "grid cols-3" },
             el("label", { class: "field" }, "Zoom-ins", select("zoom", [["off", "None"], ["low", "Now and then"], ["medium", "Regularly"], ["high", "Lots"]])),
@@ -497,6 +526,7 @@ const SECTIONS = [
   { id: "personality", title: "My personality", fields: [["personality.traits", "Traits", "list"], ["personality.platforms", "Instagram vs TikTok", "textarea"]] },
   { id: "voice", title: "How I write", fields: [["voice.style", "My writing style", "list"], ["voice.examples", "Examples of my tone", "list"], ["voice.examplesNote", "Note", "text"], ["voice.avoidTone", "Never sound like", "list"], ["voice.bannedPhrases", "Banned phrases", "list"], ["voice.punctuation", "Punctuation & emojis", "text"]] },
   { id: "editing", title: "Editing & aesthetic", fields: [["editing.principles", "Editing principles", "list"], ["editing.defaultText", "Default text", "text"], ["editing.formats", "Formats", "text"], ["aesthetic", "Aesthetic", "list"]] },
+  { id: "instagram", title: "From my Instagram", note: "What Claude learned from your profile, grid and series. Edit anything that's off.", fields: [["instagram.bio", "Bio", "textarea"], ["instagram.highlights", "Highlights", "list"], ["instagram.series", "My recurring series", "list"], ["instagram.textStyles", "How I use text on screen", "list"], ["instagram.visual", "Visual style", "list"], ["instagram.performance", "What performs", "list"]] },
   { id: "rules", title: "Rules learned from my feedback", fields: [["rules", "Rules", "list"]] },
   { id: "goals", title: "Private goals & notes", note: "Stored only on this device, never in the app's public code.", fields: [["goals.notes", "Goals, numbers, plans, anything private", "textarea"]] },
 ];
@@ -662,7 +692,7 @@ VIEWS.brain = async () => [
   el("div", { class: "card", style: { background: "linear-gradient(135deg,#FDEEF3,#FFF8E1)" } },
     el("div", { class: "eyebrow" }, "my message"), el("p", { class: "quote", style: { margin: "6px 0 0" } }, S.brand.identity.message)),
   sectionCard(SECTIONS[0]), sectionCard(SECTIONS[1]), pillarsCard(), sectionCard(SECTIONS[2]), sectionCard(SECTIONS[3]),
-  sectionCard(SECTIONS[4]), feedbackCard(), sectionCard(SECTIONS[5]), sectionCard(SECTIONS[6]), await historyCard(),
+  sectionCard(SECTIONS[4]), sectionCard(SECTIONS[5]), feedbackCard(), sectionCard(SECTIONS[6]), sectionCard(SECTIONS[7]), await historyCard(),
 ];
 
 // ============================================================ BRAND KIT & SETTINGS

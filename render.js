@@ -146,12 +146,30 @@ function drawHook(ctx, W, H, st, outT) {
     block(`italic 400 ${62 * k}px 'Playfair Display'`, p.accent, 72 * k, words.slice(0, cut), { shadow: true });
     block(`400 ${86 * k}px 'DM Serif Display'`, p.light, 92 * k, words.slice(cut), { shadow: true });
   } else if (style === "series") {
-    const f = st.look.hook.font, sf = st.look.hook.subFont;
-    block(`${f.italic ? "italic " : ""}${f.weight || 400} ${78 * k}px "${f.family}"`, p.light, 86 * k, words, { shadow: true, maxW: 0.86 });
+    const h = st.look.hook, f = h.font, sf = h.subFont;
+    const size = ({ m: 64, l: 84, xl: 112 }[h.size] || 84) * k;
+    const col = p[h.color] || p.light;
+    const fstr = (ff, px, italic = ff.italic) => `${italic ? "italic " : ""}${ff.weight || 400} ${px}px "${ff.family}"`;
+    let t = text;
+    if (h.case === "upper") t = t.toUpperCase(); else if (h.case === "lower") t = t.toLowerCase();
+    if (h.layout === "stagger") {
+      const ws = t.split(/\s+/), first = ws.shift(), rest = ws.join(" ");
+      setShadow(ctx, true, k);
+      ctx.fillStyle = col;
+      ctx.font = fstr(f, size * 1.05, true);
+      ctx.fillText(first, W / 2 - 70 * k, y);
+      y += size * 0.88;
+      if (rest) { ctx.font = fstr(f, size, false); ctx.fillText(rest, W / 2 + 80 * k, y); y += size * 0.9; }
+      setShadow(ctx, false, k);
+    } else {
+      block(fstr(f, size), col, size * 1.0, t.split(/\s+/).map((w) => ({ text: w })), { shadow: true, maxW: 0.92 });
+    }
     const sub = (st.sub || "").trim();
     if (sub) {
-      y += 10 * k;
-      block(`${sf.italic ? "italic " : ""}${sf.weight || 600} ${38 * k}px "${sf.family}"`, p.ink, 62 * k, sub.split(/\s+/).map((t) => ({ text: t })), { label: p.accent, maxW: 0.8 });
+      const sw = sub.split(/\s+/).map((w) => ({ text: w }));
+      if (h.subStyle === "pill") { y += 8 * k; block(fstr(sf, 38 * k), p.ink, 62 * k, sw, { label: p.accent, maxW: 0.8 }); }
+      else if (h.subStyle === "script") { y += 4 * k; block(fstr(sf, 60 * k), p.light, 64 * k, sw, { shadow: true, maxW: 0.85 }); }
+      else { y += 2 * k; block(fstr(sf, 36 * k), p.light, 44 * k, sw, { shadow: true, maxW: 0.85 }); }
     }
   } else if (style === "custom") {
     const f = st.look.hook.font;

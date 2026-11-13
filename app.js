@@ -5,7 +5,7 @@ import { Player, drawFrame, exportVideo, audioGraph } from "./render.js";
 import { loadKit, registerCustomFonts } from "./brand.js";
 import { activeFonts, activePalette, googleFontsHref, loadFontsFor } from "./kit.js";
 import { getBlob, listMedia } from "./library.js";
-import { getSeries, fillTemplate, logEpisode, TEXT_POSITIONS } from "./series.js";
+import { getSeries, fillTemplate, logEpisode, TEXT_POSITIONS, seriesFonts, needsWord, needsPlace } from "./series.js";
 import { PAIRINGS as KIT_PAIRINGS, PALETTES as KIT_PALETTES } from "./kit.js";
 
 const $ = (id) => document.getElementById(id);
@@ -280,15 +280,18 @@ const ep = { n: 1, date: new Date().toISOString().slice(0, 10), word: "", place:
 async function applySeries(id) {
   series = await getSeries(id);
   if (!series) return;
-  const pairing = KIT_PAIRINGS.find((p) => p.id === series.pairing) || KIT_PAIRINGS[0];
+  const fonts = seriesFonts(series, KIT_PAIRINGS);
   const pal = (KIT_PALETTES.find((p) => p.id === series.palette) || KIT_PALETTES[0]).colors;
-  await loadFontsFor({ a: pairing.primary, b: pairing.title, c: pairing.accent });
+  const capFont = fonts.sub.family === "Allura" || fonts.sub.family === "Pinyon Script" ? { family: "DM Sans", weight: 600 } : fonts.sub;
+  await loadFontsFor({ a: fonts.title, b: fonts.sub, c: capFont });
   const look = {
     id: "series", name: `${series.emoji} ${series.name}`, blurb: "Your saved series template",
-    captions: { font: pairing.primary.family, weight: pairing.primary.weight || 600, size: 58, words: 4, upper: false,
+    captions: { font: capFont.family, weight: capFont.weight || 600, size: 58, words: 4, upper: false,
       y: series.position === "bottom" ? 0.62 : 0.76, color: "light", highlight: "accent2", stroke: null, strokeW: 0,
       style: "highlight", shadow: true, pop: false, punct: true },
-    hook: { style: "series", y: TEXT_POSITIONS[series.position] ?? 0.16, font: pairing.title, subFont: pairing.primary, whole: series.showTitle === "whole" },
+    hook: { style: "series", y: TEXT_POSITIONS[series.position] ?? 0.16, font: fonts.title, subFont: fonts.sub, whole: series.showTitle === "whole",
+      color: { pink: "accent", butter: "accent2", white: "light" }[series.titleColor] || "light", case: series.titleCase || "none",
+      size: series.titleSize || "l", layout: series.layout || "stack", subStyle: series.subStyle || "pill" },
     zoom: { frequency: series.zoom || "off", strength: 1.08 },
     pacing: { pause: series.pause || 0.6, padding: 0.12 },
   };
@@ -320,8 +323,8 @@ function renderEpisodeBox() {
   };
   const grid = document.createElement("div"); grid.className = "ep-grid";
   grid.append(field(series.total ? `Episode (of ${series.total})` : "Episode", "n", "number"), field("Date", "date", "date"));
-  if (series.askWord || /\{word\}/.test(series.title + series.subtitle)) grid.append(field("Feeling (one word)", "word", "text", "e.g. strong"));
-  if (series.askPlace || /\{place\}/.test(series.title + series.subtitle)) grid.append(field("Place", "place", "text", "e.g. uluwatu"));
+  if (needsWord(series)) grid.append(field("Feeling (one word)", "word", "text", "e.g. strong"));
+  if (needsPlace(series)) grid.append(field("Place", "place", "text", "e.g. uluwatu"));
   const h = document.createElement("h2"); h.textContent = `${series.emoji} ${series.name}`;
   box.replaceChildren(h, grid);
   updateSeriesText();

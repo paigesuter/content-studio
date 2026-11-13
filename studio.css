@@ -239,18 +239,26 @@ h2 { font-size: 19px; }
 .series-card .frame916 { width: 170px; }
 .series-info h2 { margin-bottom: 4px; }
 .series-frame .sf-text { position: absolute; left: 7%; right: 7%; text-align: center; display: grid; justify-items: center; gap: 8px; }
-.series-frame .sf-title { font-size: 21px; line-height: 1.1; text-shadow: 0 2px 10px rgba(0,0,0,.3); }
-.series-frame .sf-sub { font-size: 11px; padding: 4px 10px; border-radius: 8px; }
+.series-frame .sf-title { font-size: calc(21px * var(--fs, 1)); line-height: 1.02; text-shadow: 0 2px 10px rgba(0,0,0,.3); }
+.series-frame .sf-title.stagger { display: grid; width: 100%; }
+.series-frame .sf-title.stagger span:first-child { justify-self: center; transform: translateX(-14%); }
+.series-frame .sf-title.stagger span:last-child { justify-self: center; transform: translateX(16%); margin-top: -4%; }
+.series-frame .sf-sub { font-size: 11px; text-shadow: 0 1px 6px rgba(0,0,0,.35); }
+.series-frame .sf-sub.pill { padding: 4px 10px; border-radius: 8px; text-shadow: none; }
+.series-frame .sf-sub.script { font-size: 17px; }
 .series-edit { display: grid; grid-template-columns: 300px 1fr; gap: 22px; align-items: start; }
 .series-preview { position: sticky; top: 110px; }
 .series-preview .frame916 { width: 100%; }
-.series-preview .sf-title { font-size: 34px; }
-.series-preview .sf-sub { font-size: 16px; padding: 6px 14px; }
+.series-preview .sf-title { font-size: calc(34px * var(--fs, 1)); }
+.series-preview .sf-sub { font-size: 16px; }
+.series-preview .sf-sub.script { font-size: 26px; }
+.series-preview .sf-sub.pill { padding: 6px 14px; }
 @media (max-width: 900px) {
   .series-grid { grid-template-columns: 1fr; }
   .series-card { grid-template-columns: 120px 1fr; gap: 12px; }
   .series-card .frame916 { width: 120px; }
-  .series-card .sf-title { font-size: 15px; }
+  .series-card .sf-title { font-size: calc(15px * var(--fs, 1)); }
+  .series-preview .sf-title { font-size: calc(26px * var(--fs, 1)); }
   .series-edit { grid-template-columns: 1fr; }
   .series-preview { position: static; max-width: 240px; margin: 0 auto; }
   .series-preview .sf-title { font-size: 26px; }

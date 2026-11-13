@@ -100,6 +100,34 @@ export const BRAND_SEED = {
     formats: "Default 9:16 for Reels & TikTok. Also 4:5, 1:1, 16:9 when needed.",
   },
   aesthetic: ["clean", "feminine", "cinematic", "fashion-led", "girly", "effortless", "editorial", "soft but not overly delicate", "cohesive without looking repetitive", "a recognisable personal brand, not a template-heavy Canva account"],
+  instagram: {
+    bio: "uk → australia\nfashion, travel & becoming her, so you know you can too 🤍",
+    highlights: ["60 pilates 🎀", "Australia (3 parts)", "Bali", "Morocco", "Vienna", "Poland", "2024 ✨", "2025 ✨", "progress over perfection 💸💗"],
+    series: [
+      "60 PROMISES: Pilates challenge. Big tall pink serif capitals, white script line underneath ('— one class at a time —' intro, '— 1/60 —' classes)",
+      "island diaries: Bali. Staggered editorial serif, italic 'island' + regular 'diaries', cream/white, middle of frame",
+      "Fashion finds: pink bold italic serif title + small white italic line ('outfits for every version of you')",
+      "notes from becoming her: chunky butter-yellow serif with little silver star stickers, talking to camera",
+      "on route / travel posts: pink text with a location sticker",
+    ],
+    textStyles: [
+      "Talking & aesthetic videos: small, clean, white lowercase text in the centre",
+      "Conversational one-liners on screen: 'unfortunately my entire personality is …', 'So why did you go?'",
+      "Reflective lines over sunsets: 'sometimes you have to change your life before you know what you're changing it into'",
+      "Series titles are bold and editorial; everyday text stays small and quiet",
+    ],
+    visual: [
+      "Warm natural light, Gold Coast sunsets, beaches, palm trees, city skyline at golden hour",
+      "Neutral outfits (white, cream, grey, brown, black) with pink details everywhere: pilates mat, passport, camera, phone case",
+      "Mix of talking-to-camera, mirror outfit shots, friends, travel days, cosy candlelit moments",
+      "Mint/sage pops (suitcase) sit nicely next to the pink",
+    ],
+    performance: [
+      "Grid posts mostly land around 1.5K–4.7K views; the candlelit table post is a big outlier (226K)",
+      "Fashion finds, outfit and becoming-her posts sit at the higher end (around 3.5K–4.3K)",
+      "Seen from screenshots only. Add your own insights here when you check them",
+    ],
+  },
   goals: {
     // Private: filled in on your device only
     notes: "",

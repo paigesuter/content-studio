@@ -12,8 +12,8 @@ export const PALETTES = [
     colors: { text: "#FFFFFF", pink: "#F2BACA", butter: "#F6D98A", soft: "#F5EDE2", deep: "#5E5048", sea: "#A8CFCF" } },
   { id: "sage", name: "Pink & Sage", note: "From your moodboard reference: blush pink with soft sage. An option to try, not a change.",
     colors: { text: "#FFFFFF", pink: "#F6C9D2", butter: "#FFEDE9", soft: "#F7F3EE", deep: "#4F6B55", sage: "#BBD3BF", sagedeep: "#698A6F" } },
-  { id: "studio", name: "Pilates Pink", note: "Your Pilates series: a slightly deeper pink with butter highlights.",
-    colors: { text: "#FFFFFF", pink: "#EFA3BC", butter: "#FBE6A2", soft: "#FCEAF0", deep: "#5A3646" } },
+  { id: "studio", name: "Pilates Pink", note: "Your 60 Promises pink: deeper and brighter, matched to your posts, with butter highlights.",
+    colors: { text: "#FFFFFF", pink: "#E77BA6", butter: "#FBE6A2", soft: "#FCEAF0", deep: "#5A3646" } },
 ];
 
 // Each pairing: primary (captions/body), title (hooks/editorial moments), accent (handwritten, use sparingly).
@@ -44,7 +44,8 @@ export function googleFontsHref() {
     fams.get(key).add(`${f.italic ? 1 : 0},${f.weight}`);
   }
   // Editor looks also use these
-  const extra = { "Nunito": ["0,400", "0,600", "0,700", "0,800"], "Montserrat": ["0,800", "0,900"], "DM Sans": ["0,700"], "Inter": ["0,800"], "Space Mono": ["0,400"], "DM Serif Display": ["0,400"], "Playfair Display": ["1,400"] };
+  const extra = { "Gloock": ["0,400"], "Instrument Serif": ["0,400", "1,400"], "Young Serif": ["0,400"], "Allura": ["0,400"], "Abril Fatface": ["0,400"],
+    "DM Sans": ["0,600", "0,700", "1,500"], "Nunito": ["0,400", "0,600", "0,700", "0,800"], "Montserrat": ["0,800", "0,900"], "Inter": ["0,800"], "Space Mono": ["0,400"], "DM Serif Display": ["0,400"], "Playfair Display": ["1,400", "1,800", "0,800"] };
   for (const [k, v] of Object.entries(extra)) { if (!fams.has(k)) fams.set(k, new Set()); v.forEach((x) => fams.get(k).add(x)); }
   const parts = [...fams.entries()].map(([fam, set]) => {
     const vals = [...set].sort();
@@ -76,3 +77,29 @@ export async function loadFontsFor(fonts) {
   await Promise.all(Object.values(fonts).map((f) =>
     document.fonts.load(`${f.italic ? "italic " : ""}${f.weight || 400} 40px "${f.family}"`).catch(() => {})));
 }
+
+// Fonts you can pick for series titles and labels (all free, all render into exported video).
+export const FONT_LIBRARY = [
+  { label: "Gloock (tall bold serif, 60 Promises)", family: "Gloock", weight: 400 },
+  { label: "Instrument Serif (island diaries)", family: "Instrument Serif", weight: 400 },
+  { label: "Instrument Serif italic", family: "Instrument Serif", weight: 400, italic: true },
+  { label: "Playfair Display bold italic (Fashion finds)", family: "Playfair Display", weight: 800, italic: true },
+  { label: "Playfair Display italic", family: "Playfair Display", weight: 500, italic: true },
+  { label: "Young Serif (notes from becoming her)", family: "Young Serif", weight: 400 },
+  { label: "Bodoni Moda italic", family: "Bodoni Moda", weight: 500, italic: true },
+  { label: "Abril Fatface", family: "Abril Fatface", weight: 400 },
+  { label: "DM Serif Display", family: "DM Serif Display", weight: 400 },
+  { label: "Cormorant Garamond italic", family: "Cormorant Garamond", weight: 600, italic: true },
+  { label: "Fraunces italic", family: "Fraunces", weight: 500, italic: true },
+  { label: "Italiana", family: "Italiana", weight: 400 },
+  { label: "Allura (white script)", family: "Allura", weight: 400 },
+  { label: "Pinyon Script", family: "Pinyon Script", weight: 400 },
+  { label: "Caveat (handwritten)", family: "Caveat", weight: 600 },
+  { label: "DM Sans", family: "DM Sans", weight: 600 },
+  { label: "DM Sans italic", family: "DM Sans", weight: 500, italic: true },
+  { label: "Montserrat", family: "Montserrat", weight: 600 },
+  { label: "Poppins", family: "Poppins", weight: 500 },
+  { label: "Inter", family: "Inter", weight: 600 },
+  { label: "Jost", family: "Jost", weight: 500 },
+];
+export const fontKey = (f) => `${f.family}|${f.weight || 400}|${f.italic ? 1 : 0}`;
