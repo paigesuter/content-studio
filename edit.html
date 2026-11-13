@@ -57,6 +57,14 @@
       <input id="hook" type="text" maxlength="90" placeholder="e.g. 3 things I wish I knew before…">
       <p class="small muted">Shows at the start of the video. Leave empty for none.</p>
 
+      <div class="ideas">
+        <div class="row-head"><h2>💡 Hook ideas</h2><button id="shuffleHooks" class="ghost">Shuffle</button></div>
+        <p id="ideasNote" class="small muted">These appear once your captions are ready, matched to what you said.</p>
+        <div id="hookIdeas" class="idea-list"></div>
+        <button id="askClaude" class="claude-btn" disabled>✧ Ask Claude for hooks &amp; captions for this video</button>
+        <div id="claudeResults"></div>
+      </div>
+
       <h2>Editing</h2>
       <label class="toggle"><input type="checkbox" id="optCaptions" checked> Captions</label>
       <label class="toggle"><input type="checkbox" id="optBloopers" checked> Cut mistakes &amp; repeated lines</label>
@@ -77,6 +85,20 @@
       </div>
     </div>
   </section>
+
+  <!-- Ask Claude -->
+  <div id="claudeSheet" class="sheet" hidden>
+    <div class="sheet-inner">
+      <div class="row-head"><h2>✧ Ask Claude</h2><button id="closeClaude" class="ghost">Close</button></div>
+      <p class="small"><b>1.</b> Copy this and paste it into your Claude chat. It's free, using your Claude subscription.</p>
+      <button id="copyPrompt" class="big-btn">Copy prompt</button>
+      <pre id="promptBox" class="promptbox"></pre>
+      <p class="small"><b>2.</b> Copy Claude's whole reply and paste it here:</p>
+      <textarea id="replyBox" class="replybox" placeholder="Paste Claude's reply here"></textarea>
+      <button id="applyReply" class="big-btn">Show my ideas</button>
+      <p id="replyMsg" class="small muted"></p>
+    </div>
+  </div>
 
   <!-- Compare all looks -->
   <div id="compare" class="sheet" hidden>

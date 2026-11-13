@@ -7,6 +7,8 @@ import { activeFonts, activePalette, googleFontsHref, loadFontsFor } from "./kit
 import { getBlob, listMedia } from "./library.js";
 import { getSeries, fillTemplate, logEpisode, TEXT_POSITIONS, seriesFonts, needsWord, needsPlace } from "./series.js";
 import { PAIRINGS as KIT_PAIRINGS, PALETTES as KIT_PALETTES } from "./kit.js";
+import { suggestHooks } from "./hooks.js";
+import { loadBrand } from "./brand.js";
 
 const $ = (id) => document.getElementById(id);
 const TEST = new URLSearchParams(location.search).has("test");
@@ -182,6 +184,107 @@ function gotWords(words) {
     $("hook").value = state.hook;
   }
   setStatus(words.length ? "Captions ready ✓ Tap play, or try other looks." : "No speech found, so there are no captions. Pauses are still cut.");
+  showHookIdeas();
+}
+
+// ---------- hook ideas: your hook bank + Ask Claude ----------
+let shuffleN = 0;
+const transcript = () => (state.plan?.words || []).map((w) => w.text).join(" ");
+function useHook(text, btn) {
+  const t = text.replace(/\{n\}/g, series ? ep.n : "").replace(/\s{2,}/g, " ").trim();
+  state.hook = t; $("hook").value = t;
+  document.querySelectorAll(".idea.on").forEach((b) => b.classList.remove("on"));
+  btn?.classList.add("on");
+  player.step();
+}
+function ideaButton(text, sub) {
+  const b = document.createElement("button");
+  b.className = "idea";
+  b.textContent = text;
+  if (sub) { const sm = document.createElement("small"); sm.textContent = sub; b.append(sm); }
+  b.onclick = () => useHook(text, b);
+  return b;
+}
+function showHookIdeas() {
+  $("askClaude").disabled = !state.analysis;
+  const list = suggestHooks(transcript(), { pillar: series?.pillar || null, n: 5, shuffleSeed: shuffleN });
+  $("ideasNote").textContent = state.words.length ? "From your hook bank, matched to what you said. Tap one to use it." : "From your hook bank. Tap one to use it.";
+  $("hookIdeas").replaceChildren(...list.map((h) => ideaButton(h.text, h.t)));
+}
+$("shuffleHooks").onclick = () => { shuffleN++; showHookIdeas(); };
+
+async function buildPrompt() {
+  const b = await loadBrand();
+  const lines = (arr) => (arr || []).map((x) => `- ${x}`).join("\n");
+  const length = state.plan ? Math.round(state.plan.length) : 0;
+  return `I'm Paige (@paigesuterx). I just edited this video in my content studio. Write hooks and captions for it in MY voice.
+
+ABOUT ME
+Message: ${b.identity.message}
+Who I am: ${b.identity.oneLiner}
+My audience: ${b.audience.who} Their biggest thought: "${b.audience.innerThought}"
+My pillars: ${b.pillars.map((p) => p.name).join(", ")}
+How I write:
+${lines(b.voice.style)}
+Tone examples (learn the vibe, don't reuse): ${(b.voice.examples || []).join(" / ")}
+Never sound like: ${(b.voice.avoidTone || []).join(", ")}
+Banned phrases: ${(b.voice.bannedPhrases || []).join(", ")}
+${(b.rules || []).length ? "Rules from my feedback:\n" + lines(b.rules) + "\n" : ""}
+THIS VIDEO
+${series ? `Series: ${series.name} (episode ${ep.n}${series.total ? " of " + series.total : ""})${ep.word ? ", feeling: " + ep.word : ""}${ep.place ? ", place: " + ep.place : ""}` : "Not part of a series"}
+Edited length: about ${length} seconds
+What I say (transcript): "${transcript() || "(no speech, it's a visual video)"}"
+
+Reply with ONLY one JSON code block, exactly this shape:
+\`\`\`json
+{"summary": "one line: what this video is about",
+ "hooks": [{"text": "on-screen hook, max ~10 words", "why": "few words"}],
+ "onscreen": ["other short text-on-screen ideas"],
+ "captions": [{"style": "short & cheeky", "text": "..."}, {"style": "casual & funny", "text": "..."}, {"style": "reflective", "text": "..."}, {"style": "storytelling", "text": "..."}],
+ "hashtags": ["only if they genuinely fit, else empty"]}
+\`\`\`
+Give 8 hooks. Hooks must relate to what I actually said. Lowercase is fine. No life-coach tone, no banned phrases, no excessive exclamation marks.`;
+}
+
+$("askClaude").onclick = async () => {
+  $("promptBox").textContent = await buildPrompt();
+  $("replyMsg").textContent = "";
+  $("claudeSheet").hidden = false;
+};
+$("closeClaude").onclick = () => ($("claudeSheet").hidden = true);
+$("copyPrompt").onclick = async () => {
+  try { await navigator.clipboard.writeText($("promptBox").textContent); $("copyPrompt").textContent = "Copied ✓ Now paste it into Claude"; }
+  catch { $("copyPrompt").textContent = "Couldn't copy. Select the text below and copy it"; }
+};
+$("applyReply").onclick = () => {
+  const text = $("replyBox").value;
+  const m = text.match(/```(?:json)?\s*([\s\S]*?)```/) || text.match(/(\{[\s\S]*\})/);
+  let data;
+  try { data = JSON.parse(m ? m[1] : text); } catch { $("replyMsg").textContent = "That didn't look like Claude's reply. Copy the whole message, including the code block."; return; }
+  showClaudeResults(data);
+  $("claudeSheet").hidden = true;
+};
+
+function showClaudeResults(d) {
+  const box = $("claudeResults");
+  const h = (t) => { const e = document.createElement("h3"); e.className = "res-h"; e.textContent = t; return e; };
+  const nodes = [];
+  if (d.summary) { const p = document.createElement("p"); p.className = "small muted"; p.textContent = d.summary; nodes.push(p); }
+  if (d.hooks?.length) { nodes.push(h("✧ Claude's hooks for this video")); d.hooks.forEach((x) => nodes.push(ideaButton(x.text || String(x), x.why))); }
+  if (d.onscreen?.length) { nodes.push(h("More text-on-screen ideas")); d.onscreen.forEach((x) => nodes.push(ideaButton(String(x)))); }
+  if (d.captions?.length) {
+    nodes.push(h("Captions for your post"));
+    d.captions.forEach((c) => {
+      const card = document.createElement("div"); card.className = "cap-card";
+      const st = document.createElement("div"); st.className = "cap-style"; st.textContent = c.style || "caption";
+      const p = document.createElement("p"); p.textContent = c.text || String(c);
+      const btn = document.createElement("button"); btn.className = "ghost"; btn.textContent = "Copy caption";
+      btn.onclick = async () => { try { await navigator.clipboard.writeText(p.textContent + (d.hashtags?.length ? "\n\n" + d.hashtags.map((t) => (t.startsWith("#") ? t : "#" + t)).join(" ") : "")); btn.textContent = "Copied ✓"; } catch { btn.textContent = "Select & copy manually"; } };
+      card.append(st, p, btn); nodes.push(card);
+    });
+    if (d.hashtags?.length) { const p = document.createElement("p"); p.className = "small muted"; p.textContent = "Hashtags (added when you copy): " + d.hashtags.join(" "); nodes.push(p); }
+  }
+  box.replaceChildren(...nodes);
 }
 
 // ---------- compare all looks ----------
