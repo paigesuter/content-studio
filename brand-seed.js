@@ -182,6 +182,35 @@ export const BRAND_SEED = {
     follows: "She wants to watch the becoming happen in real time and feel like she's doing it alongside a friend.",
     comments: "When the video asks about HER life ('what's stopping you?') or confesses something she relates to.",
   },
+  story: {
+    rule: "My life is the storytelling. Their life is the message. I'm the example; she is the main character of the message.",
+    wantHerToThink: [
+      "That's exactly how I feel.",
+      "I needed to hear that.",
+      "I want to start living like that.",
+      "I'm sending this to my best friend.",
+      "She makes me feel like I can do it too.",
+    ],
+    considerations: [
+      "Audience relevance: why would someone who doesn't know me care about this?",
+      "Emotional connection: what feeling, desire, fear or dream does this speak to?",
+      "Value: does it inspire, educate, entertain, reassure or make her feel understood?",
+      "Shareability: would she send it to a friend because it perfectly describes how she feels?",
+      "Authenticity: does it sound like something I'd genuinely say?",
+    ],
+    balance: [
+      "INSPIRATION: make her feel something and imagine what's possible for her own life",
+      "VALUE: useful lessons, practical advice, experiences and honest perspectives that help her take action",
+      "CONNECTION: my actual personality, humour, opinions and everyday life so people get to know me",
+      "Not a motivational quote page. Some posts are just entertaining, fashionable, funny or pretty, and that's fine",
+    ],
+    reframes: [
+      "Instead of 'my morning routine in bali' → 'a reminder that you don't have to wait for a special occasion to make your life feel special'",
+      "Instead of 'another trip booked' → 'there's a whole world out there waiting for you to stop saying one day'",
+      "Instead of 'pilates class today' → 'imagine where you'd be in six months if you started keeping the promises you make to yourself'",
+    ],
+    finalCheck: "Is this only showing what Paige is doing, or is it making her feel something about her own life?",
+  },
   goals: {
     // Private: filled in on your device only
     notes: "",

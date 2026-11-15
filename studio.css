@@ -283,3 +283,14 @@ h2 { font-size: 19px; }
 .make-card { display: grid; gap: 12px; background: linear-gradient(120deg, #FDE3EB, #FFF4D6); }
 .hook-her { font-size: 13px; color: var(--muted); margin: -4px 0 8px; font-style: italic; }
 .tag.resp { background: #E2EFE4; color: #3F6B4C; }
+
+/* Idea Studio */
+.idea-in { width: 100%; min-height: 120px; font: inherit; font-size: 16px; padding: 12px; border: 1px solid #F3DCE3; border-radius: 14px; }
+.idea-card .idea-field { border-top: 1px dashed #F3DCE3; padding-top: 6px; margin-top: 6px; }
+.idea-card .idea-field p { margin: 2px 0 6px; white-space: pre-wrap; }
+.idea-label { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: #D97A99; }
+.tag.soft { background: #FFF4D6; color: #7A6420; }
+.balance { display: flex; gap: 4px; border-radius: 999px; overflow: hidden; height: 30px; margin: 8px 0; }
+.bal { display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; color: #fff; white-space: nowrap; overflow: hidden; min-width: 0; }
+.bal.inspiration { background: #E796B0; } .bal.value { background: #9DBF9E; } .bal.connection { background: #E8B85C; }
+.btn-pink.big { width: 100%; min-height: 52px; font-size: 17px; justify-content: center; }

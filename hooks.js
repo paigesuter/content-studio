@@ -107,6 +107,24 @@ Why she watches: ${h.watches || ""}
 Why she saves: ${h.saves || ""}
 Why she shares: ${h.shares || ""}
 Why she follows: ${h.follows || ""}
-Why she comments: ${h.comments || ""}`;
+Why she comments: ${h.comments || ""}${storyBlock(b)}`;
+}
+export function storyBlock(b) {
+  const st = b.story || {};
+  if (!st.rule) return "";
+  const L = (arr) => (arr || []).map((x) => `- ${x}`).join("\n");
+  return `
+
+MY CONTENT STRATEGY (audience-first storytelling): ${st.rule}
+Turn my personal experiences into universal messages WITHOUT making them generic. Examples:
+${L(st.reframes)}
+I want her to think:
+${L(st.wantHerToThink)}
+Always consider:
+${L(st.considerations)}
+Balance:
+${L(st.balance)}
+Tone: natural, conversational, feminine, confident, playful, encouraging; emotionally impactful without being cheesy; thoughtful, never preachy; aspirational, never superior; personal without making everything about me. No polished, corporate, AI or life-coach language, and don't repeat the same inspirational phrases.
+FINAL CHECK before you give me anything: "${st.finalCheck}" Quality over quantity: no generic filler ideas.`;
 }
 export const HER_RULES = `RULES FOR HOOKS: write every hook about HER life, not mine. Nobody's lying in bed thinking about my niche; she's thinking about her money, her future, the girl she wants to become. Use "you", "the girl who…", "if you…" or identity statements so she thinks "that's literally me" or "that's who i'm becoming". My story is only the proof. Hit a specific thought from her list. Sound like her bestie, not a coach.`;

@@ -55,7 +55,7 @@ async function refreshMedia() { S.media = await listMedia(); S.folders = await l
 
 // ---------- navigation ----------
 const NAV = [
-  ["home", "Dashboard", "🏠"], ["series", "My Series", "🌸"], ["footage", "My Footage", "🎞️"], ["create", "Create / Edit", "✂️"], ["brain", "Brand Brain", "💗"],
+  ["home", "Dashboard", "🏠"], ["series", "My Series", "🌸"], ["footage", "My Footage", "🎞️"], ["create", "Create / Edit", "✂️"], ["ideas", "Idea Studio", "💡"], ["brain", "Brand Brain", "💗"],
   ["hooks", "Hook Bank", "💬"], ["inspo", "Inspiration", "✨"], ["calendar", "Content Calendar", "🗓️"], ["kit", "Brand Kit & Settings", "🎀"],
 ];
 function renderNav(page) {
@@ -559,6 +559,7 @@ const SECTIONS = [
   { id: "instagram", title: "From my Instagram", note: "What Claude learned from your profile, grid and series. Edit anything that's off.", fields: [["instagram.bio", "Bio", "textarea"], ["instagram.highlights", "Highlights", "list"], ["instagram.series", "My recurring series", "list"], ["instagram.textStyles", "How I use text on screen", "list"], ["instagram.visual", "Visual style", "list"], ["instagram.performance", "What performs", "list"]] },
   { id: "her", title: "My girl: who I'm talking to", note: "Every hook and caption is about HER life, not mine. Edit this as you learn more about her.", fields: [["her.who", "Everything I know about her", "list"], ["her.watches", "Why she watches", "textarea"], ["her.saves", "Why she saves", "textarea"], ["her.shares", "Why she shares", "textarea"], ["her.follows", "Why she follows", "textarea"], ["her.comments", "Why she comments", "textarea"]] },
   { id: "strategy", title: "Hook strategy", note: "How hooks get written for you. Method inspired by @its.amyjames.", fields: [["strategy.principles", "Principles", "list"], ["strategy.herLife", "Her life (what she's thinking about)", "list"]] },
+  { id: "story", title: "My content strategy: audience-first storytelling", note: "My life is the storytelling. Their life is the message. Every Claude prompt in the studio follows this.", fields: [["story.rule", "The most important rule", "textarea"], ["story.wantHerToThink", "I want her to think…", "list"], ["story.considerations", "Always consider", "list"], ["story.balance", "Content balance", "list"], ["story.reframes", "Me → her reframes", "list"], ["story.finalCheck", "Final check", "text"]] },
   { id: "rules", title: "Rules learned from my feedback", fields: [["rules", "Rules", "list"]] },
   { id: "goals", title: "Private goals & notes", note: "Stored only on this device, never in the app's public code.", fields: [["goals.notes", "Goals, numbers, plans, anything private", "textarea"]] },
 ];
@@ -723,8 +724,8 @@ VIEWS.brain = async () => [
     el("p", {}, "Everything the studio knows about you. It's used for every idea, hook, caption and edit. Edit anything, any time.")),
   el("div", { class: "card", style: { background: "linear-gradient(135deg,#FDEEF3,#FFF8E1)" } },
     el("div", { class: "eyebrow" }, "my message"), el("p", { class: "quote", style: { margin: "6px 0 0" } }, S.brand.identity.message)),
-  sectionCard(SECTIONS[0]), sectionCard(SECTIONS[1]), sectionCard(SECTIONS[6]), pillarsCard(), sectionCard(SECTIONS[2]), sectionCard(SECTIONS[3]),
-  sectionCard(SECTIONS[4]), sectionCard(SECTIONS[7]), sectionCard(SECTIONS[5]), feedbackCard(), sectionCard(SECTIONS[8]), sectionCard(SECTIONS[9]), await historyCard(),
+  sectionCard(SECTIONS[0]), sectionCard(SECTIONS[1]), sectionCard(SECTIONS[6]), sectionCard(SECTIONS.find((x) => x.id === "story")), pillarsCard(), sectionCard(SECTIONS[2]), sectionCard(SECTIONS[3]),
+  sectionCard(SECTIONS[4]), sectionCard(SECTIONS[7]), sectionCard(SECTIONS[5]), feedbackCard(), sectionCard(SECTIONS.find((x) => x.id === "rules")), sectionCard(SECTIONS.find((x) => x.id === "goals")), await historyCard(),
 ];
 
 // ============================================================ BRAND KIT & SETTINGS
@@ -915,6 +916,90 @@ Reply with ONLY one JSON code block:
     hooks.forEach((h, i) => bank.mine.unshift({ id: Date.now().toString(36) + i, text: String(h.text), p: h.pillar || null, f: FORMATS.some((f) => f.id === h.format) ? h.format : null, t: "from Claude", her: h.her || "", r: h.does || "", k: [] }));
     await saveHookBank(bank);
     return hooks.length ? `Added ${hooks.length} hooks to "My hooks" ✓` : "No hooks found in that reply.";
+  });
+}
+
+// ============================================================ IDEA STUDIO
+// Rough thought / video / photo / vlog idea → audience-first content (her life is the message).
+const ANGLES = [["emotional", "Emotional"], ["relatable", "Relatable"], ["funny", "Funny"], ["educational", "Educational"], ["aspirational", "Aspirational"]];
+const BALANCE = { inspiration: "Inspiration", value: "Value", connection: "Connection" };
+let ideaDraft = { text: "", pillar: "", angles: [] };
+async function ideaStore() { return (await dbValue("ideas")) || []; }
+VIEWS.ideas = async () => {
+  const ideas = await ideaStore();
+  const pillarName = (id) => S.brand.pillars.find((p) => p.id === id)?.name || id || "";
+  const box = el("textarea", { class: "idea-in", placeholder: "e.g. filmed my morning pilates class in bali, felt really proud I've kept going 20 classes in a row\n\nor: a rough thought, what's in a photo, a vlog idea, something that happened" }, ideaDraft.text);
+  box.oninput = () => (ideaDraft.text = box.value);
+  const pchip = (id, label) => el("button", { class: "chip" + (ideaDraft.pillar === id ? " on" : ""), onclick: () => { ideaDraft.pillar = ideaDraft.pillar === id ? "" : id; render(); } }, label);
+  const achip = ([id, label]) => el("button", { class: "chip" + (ideaDraft.angles.includes(id) ? " on" : ""), onclick: () => {
+    ideaDraft.angles = ideaDraft.angles.includes(id) ? ideaDraft.angles.filter((x) => x !== id) : [...ideaDraft.angles, id]; render(); } }, label);
+  const counts = { inspiration: 0, value: 0, connection: 0 };
+  ideas.forEach((i) => { if (counts[i.type] != null) counts[i.type]++; });
+  const total = Object.values(counts).reduce((a, b) => a + b, 0);
+  const copyBtn = (t) => el("button", { class: "btn-ghost", onclick: async () => toast((await copyText(t)) ? "Copied ✓" : "Couldn't copy") }, "Copy");
+  const field = (label, text) => text ? el("div", { class: "idea-field" }, el("div", { class: "row-head" }, el("span", { class: "idea-label" }, label), copyBtn(text)), el("p", {}, text)) : null;
+  const ideaCard = (it) => el("div", { class: "card idea-card" },
+    el("div", { class: "row small" }, el("span", { class: "tag" }, pillarName(it.pillar)), it.type ? el("span", { class: "tag soft" }, BALANCE[it.type] || it.type) : null, it.angle ? el("span", { class: "muted" }, it.angle) : null),
+    el("p", { class: "muted small" }, "From: ", it.from),
+    field("Core message", it.core), field("Hook", it.hook), field("On-screen text", it.onScreen), field("Caption", it.caption), field("Why she'd care", it.value),
+    it.check ? el("p", { class: "small muted" }, "✓ ", it.check) : null,
+    el("div", { class: "row" },
+      el("button", { onclick: async () => { const bank = await hookBank(); bank.mine.unshift({ id: Date.now().toString(36), text: it.hook, p: it.pillar || null, f: null, t: "from Idea Studio", her: it.core || "", k: [] }); await saveHookBank(bank); toast("Hook saved to your Hook Bank ✓"); } }, "Save hook"),
+      el("button", { onclick: () => { location.hash = "#footage"; toast("Pick the clips for this one, then tap 🎬 Make a video"); } }, "🎬 Film / edit it"),
+      el("button", { class: "btn-ghost", onclick: async () => { await dbSet("ideas", (await ideaStore()).filter((x) => x.id !== it.id)); render(); } }, "Delete")));
+  return [
+    el("div", { class: "page-head" }, el("h1", {}, "Idea ", el("em", {}, "Studio")),
+      el("p", {}, "Drop in a video idea, a photo, a vlog or a rough thought. Claude turns it into content where your life is the story and ", el("b", {}, "her life is the message"), ".")),
+    el("div", { class: "card" },
+      el("h2", {}, "What have you got?"), box,
+      el("p", { class: "small muted", style: { margin: "12px 0 4px" } }, "Pillar (optional)"),
+      el("div", { class: "chips scroll" }, S.brand.pillars.map((p) => pchip(p.id, p.name))),
+      el("p", { class: "small muted", style: { margin: "8px 0 4px" } }, "Angles to try (optional)"),
+      el("div", { class: "chips" }, ANGLES.map(achip)),
+      el("button", { class: "btn-pink big", style: { marginTop: "12px" }, onclick: () => askClaudeIdeas() }, "✧ Turn it into content")),
+    total ? el("div", { class: "card" }, el("h3", {}, "Your balance"),
+      el("p", { class: "small muted" }, "Not a quote page: mix inspiration, value and connection."),
+      el("div", { class: "balance" }, Object.entries(counts).map(([k, n]) => el("div", { class: "bal " + k, style: { flex: String(Math.max(n, 0.0001)) } }, n ? `${BALANCE[k]} ${n}` : ""))),
+      (() => { const low = Object.entries(counts).sort((a, b) => a[1] - b[1])[0]; return total >= 3 && low[1] < total / 5 ? el("p", { class: "small" }, `Light on ${BALANCE[low[0]].toLowerCase()} lately. Maybe make the next one about that.`) : null; })()) : null,
+    ideas.length ? el("h2", { style: { margin: "18px 0 8px" } }, "Saved ideas") : null,
+    ideas.map(ideaCard),
+  ];
+};
+function askClaudeIdeas() {
+  const b = S.brand;
+  const thing = ideaDraft.text.trim();
+  if (!thing) { toast("Write what you've got first"); return; }
+  const pillar = S.brand.pillars.find((p) => p.id === ideaDraft.pillar);
+  const angles = ideaDraft.angles.length ? ideaDraft.angles.join(", ") : "whichever 2–3 of emotional, relatable, funny, educational, aspirational suit it best";
+  const prompt = `You are my personal brand strategist, creative director and content coach. Help me turn this into audience-first content.
+
+WHAT I'VE GOT: ${thing}
+${pillar ? `Pillar: ${pillar.name}` : "Pick the pillar that fits."}
+Angles to try: ${angles}
+
+ABOUT ME: ${b.identity.oneLiner} Brand message: ${b.identity.message}
+My pillars: ${b.pillars.map((p) => `${p.name}: ${p.about}`).join(" | ")}
+${herBlock(b)}
+How I write: ${(b.voice.style || []).join("; ")}
+Tone examples (learn the tone, don't reuse): ${(b.voice.examples || []).join(" / ")}
+Never sound like: ${(b.voice.avoidTone || []).join(", ")}
+Banned phrases: ${(b.voice.bannedPhrases || []).join(", ")}
+${(b.rules || []).length ? "Rules from my feedback: " + b.rules.join("; ") : ""}
+${HER_RULES}
+
+Give me 2–3 strong versions (one per angle). Quality over quantity: if only one angle is genuinely good, give one.
+For each: core message (what she should feel/learn/realise), hook (natural, attention-grabbing, about HER), on-screen text (short, emotional, shareable), caption (my natural voice, adds meaning rather than repeating the video; first line is a second hook), audience value (why she'd care, save, share or follow), pillar, and which of inspiration / value / connection it mostly is.
+Reply with ONLY one JSON code block:
+\`\`\`json
+{"ideas": [{"angle": "relatable", "core": "...", "hook": "...", "onScreen": "...", "caption": "...", "value": "...", "pillar": "style|becoming|experiencing|little", "type": "inspiration|value|connection", "check": "one line: how this makes HER feel something about her own life"}]}
+\`\`\``;
+  claudeSheet("✧ Turn it into content", prompt, async (data) => {
+    const got = (data.ideas || []).filter((x) => x && (x.hook || x.core));
+    const ideas = await ideaStore();
+    got.reverse().forEach((x, i) => ideas.unshift({ id: Date.now().toString(36) + i, from: thing.slice(0, 140), angle: x.angle || "", core: x.core || "", hook: x.hook || "", onScreen: x.onScreen || "", caption: x.caption || "", value: x.value || "", pillar: x.pillar || ideaDraft.pillar || "", type: x.type || "", check: x.check || "" }));
+    await dbSet("ideas", ideas.slice(0, 200));
+    if (got.length) { ideaDraft = { text: "", pillar: "", angles: [] }; closeSheet(); toast(`${got.length} idea${got.length > 1 ? "s" : ""} saved ✓`); }
+    return got.length ? `Saved ${got.length} ✓` : "No ideas found in that reply.";
   });
 }
 
