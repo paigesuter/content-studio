@@ -24,7 +24,7 @@ export const BRAND_SEED = {
       "Spending time in Bali and starting to question what my purpose is outside of work, what I want my life to revolve around and how I actually want to spend my time",
     ],
     backgroundStories: [
-      "Went through school insecure about my skin, had a horrible 5–6 months on roaccutane, then my skin cleared. So grateful I did it; it's part of how I became more confident",
+      "Went through school insecure about my skin, had a horrible 5–6 months on roaccutane, then my skin cleared. So grateful I did it. Like everything I've been through, it shaped my personality, my confidence and how I show up in the world",
     ],
     storyRules: "These are real. Never invent details about them or assume I've reached conclusions I haven't. Ask me what genuinely happened.",
     themes: [
