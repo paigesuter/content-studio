@@ -294,3 +294,5 @@ h2 { font-size: 19px; }
 .bal { display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; color: #fff; white-space: nowrap; overflow: hidden; min-width: 0; }
 .bal.inspiration { background: #E796B0; } .bal.value { background: #9DBF9E; } .bal.connection { background: #E8B85C; }
 .btn-pink.big { width: 100%; min-height: 52px; font-size: 17px; justify-content: center; }
+.idea-q { background: #FFF7FA; border-radius: 12px; padding: 8px 12px; margin: 8px 0; }
+.idea-q ul { margin: 4px 0 0; }

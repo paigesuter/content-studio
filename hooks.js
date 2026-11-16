@@ -107,7 +107,10 @@ Why she watches: ${h.watches || ""}
 Why she saves: ${h.saves || ""}
 Why she shares: ${h.shares || ""}
 Why she follows: ${h.follows || ""}
-Why she comments: ${h.comments || ""}${storyBlock(b)}`;
+Why she comments: ${h.comments || ""}
+${b.audience?.twenties ? "Her twenties: " + b.audience.twenties : ""}
+${(h.twenties || []).map((x) => `- ${x}`).join("\n")}
+${(b.audience?.feel || []).length ? "She should feel: " + b.audience.feel.map((x) => `"${x}"`).join(" and sometimes ") : ""}${storyBlock(b)}`;
 }
 export function storyBlock(b) {
   const st = b.story || {};
@@ -125,6 +128,17 @@ ${L(st.considerations)}
 Balance:
 ${L(st.balance)}
 Tone: natural, conversational, feminine, confident, playful, encouraging; emotionally impactful without being cheesy; thoughtful, never preachy; aspirational, never superior; personal without making everything about me. No polished, corporate, AI or life-coach language, and don't repeat the same inspirational phrases.
-FINAL CHECK before you give me anything: "${st.finalCheck}" Quality over quantity: no generic filler ideas.`;
+${b.identity?.storyline ? `MY STORY: "${b.identity.storyline}" ${b.identity.figuringItOut || ""}
+${b.identity.storyIdentity || ""}
+My real stories (${b.identity.storyRules || "never invent details"}):
+${L(b.identity.personalStories)}
+Deeper message: ${st.deeperMessage || ""}
+Philosophy:
+${L(st.philosophy)}
+How to help me:
+${L(st.helpMe)}
+Recurring storytelling themes:
+${L(st.themes)}
+` : ""}FINAL CHECK before you give me anything: "${st.finalCheck}" Quality over quantity: no generic filler ideas.`;
 }
 export const HER_RULES = `RULES FOR HOOKS: write every hook about HER life, not mine. Nobody's lying in bed thinking about my niche; she's thinking about her money, her future, the girl she wants to become. Use "you", "the girl who…", "if you…" or identity statements so she thinks "that's literally me" or "that's who i'm becoming". My story is only the proof. Hit a specific thought from her list. Sound like her bestie, not a coach.`;

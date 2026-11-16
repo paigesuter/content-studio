@@ -6,6 +6,7 @@ import { loadBrand, updateBrand, history, revert, addFeedback, loadKit, saveKit,
   registerCustomFonts, removeCustomFont, exportBackup, importBackup, resetBrand } from "./brand.js";
 import { PALETTES, PAIRINGS, googleFontsHref, activePalette, FONT_LIBRARY, fontKey } from "./kit.js";
 import { listSeries, saveSeries, deleteSeries, newSeries, fillTemplate, seriesFonts } from "./series.js";
+import { STARTER_IDEAS } from "./ideas-seed.js";
 import { HOOKS, FORMATS, CAPTION_OPENERS, herBlock, HER_RULES } from "./hooks.js";
 import { importFiles, listMedia, getBlob, removeMedia, updateMedia, listFolders, addFolder, removeFolder,
   fmtDuration, fmtSize } from "./library.js";
@@ -551,15 +552,16 @@ VIEWS.create = async () => {
 
 // ============================================================ BRAND BRAIN
 const SECTIONS = [
-  { id: "identity", title: "Who I am", fields: [["identity.oneLiner", "In one line", "text"], ["identity.handles", "Handles", "textarea"], ["identity.message", "Brand message", "text"], ["identity.story", "My story", "textarea"], ["identity.themes", "Themes I come back to", "list"]] },
-  { id: "audience", title: "Who I'm talking to", fields: [["audience.who", "Who they are", "textarea"], ["audience.innerThought", "Their biggest thought", "text"], ["audience.traits", "They might…", "list"], ["audience.wants", "What they want from me", "textarea"]] },
+  { id: "identity", title: "Who I am", fields: [["identity.oneLiner", "In one line", "text"], ["identity.handles", "Handles", "textarea"], ["identity.message", "Brand message", "text"], ["identity.storyline", "My story in two words", "text"], ["identity.storyIdentity", "My storytelling identity", "textarea"], ["identity.figuringItOut", "Where I'm at", "textarea"], ["identity.personalStories", "Stories that shaped me", "list"], ["identity.storyRules", "Rule for my stories", "text"], ["identity.story", "My story", "textarea"], ["identity.themes", "Themes I come back to", "list"]] },
+  { id: "audience", title: "Who I'm talking to", fields: [["audience.who", "Who they are", "textarea"], ["audience.twenties", "Her twenties", "textarea"], ["audience.feel", "She should feel", "list"], ["audience.innerThought", "Their biggest thought", "text"], ["audience.traits", "They might…", "list"], ["audience.wants", "What they want from me", "textarea"]] },
   { id: "personality", title: "My personality", fields: [["personality.traits", "Traits", "list"], ["personality.platforms", "Instagram vs TikTok", "textarea"]] },
   { id: "voice", title: "How I write", fields: [["voice.style", "My writing style", "list"], ["voice.examples", "Examples of my tone", "list"], ["voice.examplesNote", "Note", "text"], ["voice.avoidTone", "Never sound like", "list"], ["voice.bannedPhrases", "Banned phrases", "list"], ["voice.punctuation", "Punctuation & emojis", "text"]] },
   { id: "editing", title: "Editing & aesthetic", fields: [["editing.principles", "Editing principles", "list"], ["editing.defaultText", "Default text", "text"], ["editing.formats", "Formats", "text"], ["aesthetic", "Aesthetic", "list"]] },
   { id: "instagram", title: "From my Instagram", note: "What Claude learned from your profile, grid and series. Edit anything that's off.", fields: [["instagram.bio", "Bio", "textarea"], ["instagram.highlights", "Highlights", "list"], ["instagram.series", "My recurring series", "list"], ["instagram.textStyles", "How I use text on screen", "list"], ["instagram.visual", "Visual style", "list"], ["instagram.performance", "What performs", "list"]] },
-  { id: "her", title: "My girl: who I'm talking to", note: "Every hook and caption is about HER life, not mine. Edit this as you learn more about her.", fields: [["her.who", "Everything I know about her", "list"], ["her.watches", "Why she watches", "textarea"], ["her.saves", "Why she saves", "textarea"], ["her.shares", "Why she shares", "textarea"], ["her.follows", "Why she follows", "textarea"], ["her.comments", "Why she comments", "textarea"]] },
+  { id: "her", title: "My girl: who I'm talking to", note: "Every hook and caption is about HER life, not mine. Edit this as you learn more about her.", fields: [["her.who", "Everything I know about her", "list"], ["her.twenties", "Navigating her twenties", "list"], ["her.watches", "Why she watches", "textarea"], ["her.saves", "Why she saves", "textarea"], ["her.shares", "Why she shares", "textarea"], ["her.follows", "Why she follows", "textarea"], ["her.comments", "Why she comments", "textarea"]] },
   { id: "strategy", title: "Hook strategy", note: "How hooks get written for you. Method inspired by @its.amyjames.", fields: [["strategy.principles", "Principles", "list"], ["strategy.herLife", "Her life (what she's thinking about)", "list"]] },
-  { id: "story", title: "My content strategy: audience-first storytelling", note: "My life is the storytelling. Their life is the message. Every Claude prompt in the studio follows this.", fields: [["story.rule", "The most important rule", "textarea"], ["story.wantHerToThink", "I want her to think…", "list"], ["story.considerations", "Always consider", "list"], ["story.balance", "Content balance", "list"], ["story.reframes", "Me → her reframes", "list"], ["story.finalCheck", "Final check", "text"]] },
+  { id: "story", title: "My content strategy: audience-first storytelling", note: "My life is the storytelling. Their life is the message. Every Claude prompt in the studio follows this.", fields: [["story.rule", "The most important rule", "textarea"], ["story.wantHerToThink", "I want her to think…", "list"], ["story.considerations", "Always consider", "list"], ["story.balance", "Content balance", "list"], ["story.reframes", "Me → her reframes", "list"], ["story.deeperMessage", "The deeper message", "textarea"], ["story.philosophy", "My content philosophy", "list"], ["story.helpMe", "How Claude should help me", "list"], ["story.themes", "Recurring storytelling themes", "list"], ["story.finalCheck", "Final check", "text"]] },
+  { id: "telling", title: "How I tell stories", note: "My recognisable approach to talking videos, voiceovers, vlogs and captions, and the aspirational / honest balance.", fields: [["story.talking", "Talking videos", "list"], ["story.voiceover", "Voiceovers", "list"], ["story.vlog", "Vlogs", "list"], ["story.captions", "Captions", "list"], ["story.mix", "Balance", "list"]] },
   { id: "rules", title: "Rules learned from my feedback", fields: [["rules", "Rules", "list"]] },
   { id: "goals", title: "Private goals & notes", note: "Stored only on this device, never in the app's public code.", fields: [["goals.notes", "Goals, numbers, plans, anything private", "textarea"]] },
 ];
@@ -724,7 +726,7 @@ VIEWS.brain = async () => [
     el("p", {}, "Everything the studio knows about you. It's used for every idea, hook, caption and edit. Edit anything, any time.")),
   el("div", { class: "card", style: { background: "linear-gradient(135deg,#FDEEF3,#FFF8E1)" } },
     el("div", { class: "eyebrow" }, "my message"), el("p", { class: "quote", style: { margin: "6px 0 0" } }, S.brand.identity.message)),
-  sectionCard(SECTIONS[0]), sectionCard(SECTIONS[1]), sectionCard(SECTIONS[6]), sectionCard(SECTIONS.find((x) => x.id === "story")), pillarsCard(), sectionCard(SECTIONS[2]), sectionCard(SECTIONS[3]),
+  sectionCard(SECTIONS[0]), sectionCard(SECTIONS[1]), sectionCard(SECTIONS[6]), sectionCard(SECTIONS.find((x) => x.id === "story")), sectionCard(SECTIONS.find((x) => x.id === "telling")), pillarsCard(), sectionCard(SECTIONS[2]), sectionCard(SECTIONS[3]),
   sectionCard(SECTIONS[4]), sectionCard(SECTIONS[7]), sectionCard(SECTIONS[5]), feedbackCard(), sectionCard(SECTIONS.find((x) => x.id === "rules")), sectionCard(SECTIONS.find((x) => x.id === "goals")), await historyCard(),
 ];
 
@@ -924,7 +926,15 @@ Reply with ONLY one JSON code block:
 const ANGLES = [["emotional", "Emotional"], ["relatable", "Relatable"], ["funny", "Funny"], ["educational", "Educational"], ["aspirational", "Aspirational"]];
 const BALANCE = { inspiration: "Inspiration", value: "Value", connection: "Connection" };
 let ideaDraft = { text: "", pillar: "", angles: [] };
-async function ideaStore() { return (await dbValue("ideas")) || []; }
+let ideaFilter = "all";
+async function ideaStore() {
+  let ideas = (await dbValue("ideas")) || [];
+  if (!(await dbValue("ideasSeeded"))) {
+    ideas = [...ideas, ...STARTER_IDEAS.map((x, i) => ({ ...x, id: "starter" + i, starter: true }))];
+    await dbSet("ideas", ideas); await dbSet("ideasSeeded", true);
+  }
+  return ideas;
+}
 VIEWS.ideas = async () => {
   const ideas = await ideaStore();
   const pillarName = (id) => S.brand.pillars.find((p) => p.id === id)?.name || id || "";
@@ -941,6 +951,7 @@ VIEWS.ideas = async () => {
   const ideaCard = (it) => el("div", { class: "card idea-card" },
     el("div", { class: "row small" }, el("span", { class: "tag" }, pillarName(it.pillar)), it.type ? el("span", { class: "tag soft" }, BALANCE[it.type] || it.type) : null, it.angle ? el("span", { class: "muted" }, it.angle) : null),
     el("p", { class: "muted small" }, "From: ", it.from),
+    it.questions?.length ? el("div", { class: "idea-q" }, el("span", { class: "idea-label" }, "Tell it truthfully: fill in"), el("ul", { class: "list small" }, it.questions.map((q) => el("li", {}, q)))) : null,
     field("Core message", it.core), field("Hook", it.hook), field("On-screen text", it.onScreen), field("Caption", it.caption), field("Why she'd care", it.value),
     it.check ? el("p", { class: "small muted" }, "✓ ", it.check) : null,
     el("div", { class: "row" },
@@ -961,8 +972,10 @@ VIEWS.ideas = async () => {
       el("p", { class: "small muted" }, "Not a quote page: mix inspiration, value and connection."),
       el("div", { class: "balance" }, Object.entries(counts).map(([k, n]) => el("div", { class: "bal " + k, style: { flex: String(Math.max(n, 0.0001)) } }, n ? `${BALANCE[k]} ${n}` : ""))),
       (() => { const low = Object.entries(counts).sort((a, b) => a[1] - b[1])[0]; return total >= 3 && low[1] < total / 5 ? el("p", { class: "small" }, `Light on ${BALANCE[low[0]].toLowerCase()} lately. Maybe make the next one about that.`) : null; })()) : null,
-    ideas.length ? el("h2", { style: { margin: "18px 0 8px" } }, "Saved ideas") : null,
-    ideas.map(ideaCard),
+    ideas.length ? el("div", { style: { margin: "18px 0 8px" } }, el("h2", {}, "Saved ideas"),
+      el("div", { class: "chips scroll" }, [["all", "All"], ...S.brand.pillars.map((p) => [p.id, p.name]), ["starter", "From my stories"]].map(([id, label]) =>
+        el("button", { class: "chip" + (ideaFilter === id ? " on" : ""), onclick: () => { ideaFilter = id; render(); } }, label)))) : null,
+    ideas.filter((it) => ideaFilter === "all" || it.pillar === ideaFilter || (ideaFilter === "starter" && it.starter)).map(ideaCard),
   ];
 };
 function askClaudeIdeas() {
@@ -987,16 +1000,17 @@ Banned phrases: ${(b.voice.bannedPhrases || []).join(", ")}
 ${(b.rules || []).length ? "Rules from my feedback: " + b.rules.join("; ") : ""}
 ${HER_RULES}
 
+If it's based on my real experience and you need details to tell it truthfully, don't invent them: put [brackets] in the draft and list what to ask me in "questions". If it's lighthearted, keep it lighthearted.
 Give me 2–3 strong versions (one per angle). Quality over quantity: if only one angle is genuinely good, give one.
 For each: core message (what she should feel/learn/realise), hook (natural, attention-grabbing, about HER), on-screen text (short, emotional, shareable), caption (my natural voice, adds meaning rather than repeating the video; first line is a second hook), audience value (why she'd care, save, share or follow), pillar, and which of inspiration / value / connection it mostly is.
 Reply with ONLY one JSON code block:
 \`\`\`json
-{"ideas": [{"angle": "relatable", "core": "...", "hook": "...", "onScreen": "...", "caption": "...", "value": "...", "pillar": "style|becoming|experiencing|little", "type": "inspiration|value|connection", "check": "one line: how this makes HER feel something about her own life"}]}
+{"ideas": [{"angle": "relatable", "core": "...", "hook": "...", "onScreen": "...", "caption": "...", "value": "...", "pillar": "style|becoming|experiencing|little", "type": "inspiration|value|connection", "check": "one line: how this makes HER feel something about her own life", "questions": ["what you need me to tell you about what really happened"]}]}
 \`\`\``;
   claudeSheet("✧ Turn it into content", prompt, async (data) => {
     const got = (data.ideas || []).filter((x) => x && (x.hook || x.core));
     const ideas = await ideaStore();
-    got.reverse().forEach((x, i) => ideas.unshift({ id: Date.now().toString(36) + i, from: thing.slice(0, 140), angle: x.angle || "", core: x.core || "", hook: x.hook || "", onScreen: x.onScreen || "", caption: x.caption || "", value: x.value || "", pillar: x.pillar || ideaDraft.pillar || "", type: x.type || "", check: x.check || "" }));
+    got.reverse().forEach((x, i) => ideas.unshift({ id: Date.now().toString(36) + i, from: thing.slice(0, 140), angle: x.angle || "", core: x.core || "", hook: x.hook || "", onScreen: x.onScreen || "", caption: x.caption || "", value: x.value || "", pillar: x.pillar || ideaDraft.pillar || "", type: x.type || "", check: x.check || "", questions: Array.isArray(x.questions) ? x.questions.slice(0, 5) : [] }));
     await dbSet("ideas", ideas.slice(0, 200));
     if (got.length) { ideaDraft = { text: "", pillar: "", angles: [] }; closeSheet(); toast(`${got.length} idea${got.length > 1 ? "s" : ""} saved ✓`); }
     return got.length ? `Saved ${got.length} ✓` : "No ideas found in that reply.";

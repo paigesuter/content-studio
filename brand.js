@@ -10,9 +10,16 @@ export async function loadBrand() {
   const saved = await db.getValue("brand", null);
   if (!saved) return clone(BRAND_SEED);
   // add any new sections from future updates without overwriting your edits
-  const out = clone(BRAND_SEED);
-  for (const k of Object.keys(saved)) out[k] = saved[k];
-  return out;
+  // (deep: new notes inside an existing section appear too, your saved edits always win)
+  const isObj = (x) => x && typeof x === "object" && !Array.isArray(x);
+  const fill = (into, seed) => {
+    for (const k of Object.keys(seed)) {
+      if (!(k in into)) into[k] = clone(seed[k]);
+      else if (isObj(into[k]) && isObj(seed[k])) fill(into[k], seed[k]);
+    }
+    return into;
+  };
+  return fill(clone(saved), BRAND_SEED);
 }
 
 // path like "voice.examples"; records the before/after in history
