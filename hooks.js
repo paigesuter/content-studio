@@ -132,7 +132,9 @@ ${b.identity?.storyline ? `MY STORY: "${b.identity.storyline}" ${b.identity.figu
 ${b.identity.storyIdentity || ""}
 My real stories (${b.identity.storyRules || "never invent details"}):
 ${L(b.identity.personalStories)}
-Deeper message: ${st.deeperMessage || ""}
+${(b.identity.backgroundStories || []).length ? `Background that shaped me and how I show up (NOT content topics: don't build ideas around these unless I bring them up):
+${L(b.identity.backgroundStories)}
+` : ""}Deeper message: ${st.deeperMessage || ""}
 Philosophy:
 ${L(st.philosophy)}
 How to help me:
